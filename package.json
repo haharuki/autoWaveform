@@ -1,0 +1,13 @@
+{
+  "name": "autowaveform",
+  "version": "1.0.0",
+  "description": "Offline single-file digital timing editor with SVG, PNG and editable PPTX export.",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node build.cjs"
+  }
+}
