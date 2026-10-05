@@ -48,6 +48,9 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
 @media(max-width:1100px){.studio{grid-template-columns:minmax(0,1fr) 250px}.toolbar{height:auto}.canvas-surround{padding-left:14px;padding-right:14px}.palette{gap:8px}}
 @media(max-width:800px){.studio{grid-template-columns:1fr}.workspace{min-height:420px}.canvas-surround{min-height:0}.canvas-scroll{max-height:540px}#signal-fields{display:block}.inspector #signal-panel,.inspector #canvas-panel{padding:18px 22px}.canvas-hint{font-size:10px}.export-info{flex-wrap:wrap;gap:6px}}
 @media(max-width:480px){.app-header{padding:0 12px}.brand>span:first-of-type{font-size:16px}.brand-mark{height:27px;width:27px}.canvas-surround{padding-left:8px;padding-right:8px}.export-dialog .type-options{gap:7px}.export-dialog .type-options label>span{padding:12px 8px}.export-dialog .type-options small{font-size:9px}.export-dialog .type-options strong{font-size:11px}}
+
+.time-break-section{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}#time-break-list{margin-top:10px}.time-break-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11px;color:#68707a}.time-break-item>span{min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.time-break-item [data-remove-time-break]{flex-shrink:0;min-height:28px;padding:5px 8px;border:1px solid #dce1eb;border-radius:4px;background:#fff;color:#8c4b56;font-size:11px;line-height:1.4}.time-break-item [data-remove-time-break]:hover{background:#fbf4f5}.time-break-empty{margin:0;padding:9px 0;font-size:11px;color:#8c949e;line-height:1.7}
+.export-width-control{display:flex;gap:12px;align-items:flex-end;margin-bottom:10px}.export-width-control .field{flex:1;margin-bottom:0}.export-width-control .button{height:34px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -80,7 +83,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
             <label class="field">线条粗细<div class="range-field"><input id="signal-width" type="range" min="0.5" max="5" step="0.25"><output id="width-output">2 px</output></div></label>
             <div id="digital-fields" class="property-section"><div class="section-label">边沿过渡<span class="unit-label">ns</span></div><div class="field-row"><label class="field"><span><span data-icon="rise"></span>上升时间</span><input id="signal-rise" type="number" min="0" max="1000" step="0.05"></label><label class="field"><span><span data-icon="fall"></span>下降时间</span><input id="signal-fall" type="number" min="0" max="1000" step="0.05"></label></div><p class="field-note">设为 0 绘制垂直边沿；非零时显示倾斜过渡。</p><button id="clock-btn" class="button full"><span data-icon="clock"></span>生成时钟波形</button></div>
             <div class="property-section"><div class="section-label">选中区间<span id="interval-range" class="muted"></span></div><div id="interval-content"><label class="field">区间值<input id="interval-value" type="text" maxlength="80" spellcheck="false"></label><div class="field-row"><label class="field">开始时刻<input id="interval-start" type="number" min="0" step="any"></label><label class="field">结束时刻<input id="interval-end" type="number" min="0" step="any"></label></div><button id="apply-interval" class="button full">修改区间值</button><div class="interval-style"><label class="field">区间颜色<input id="interval-color" type="color" value="#cc2222" aria-label="区间颜色"></label><button id="apply-interval-color" class="button">着色</button><button id="reset-interval-color" class="button" title="恢复使用信号颜色">重置</button></div></div><p class="field-note" id="interval-note">填写起止时刻，可只对部分波形着色。</p></div>
-            <div class="property-section break-section"><div class="section-label">断线标记<span class="unit-label">ns</span></div><label class="field">位置<select id="break-list" aria-label="选择断线"><option value="-1">新增位置</option></select></label><label class="field">时刻<input id="break-time" type="number" step="any"></label><div class="break-actions"><button id="apply-break" class="button">添加断线</button><button id="remove-break" class="button" disabled>删除断线</button></div><button id="sync-break-all" class="button full" disabled>将此断线对齐到全部信号</button><p class="field-note">可直接拖动标记。断线仅表示省略，不改变时间与逻辑值。</p></div>
+            <div class="property-section break-section"><div class="section-label">断线标记<span class="unit-label">ns</span></div><label class="field">位置<select id="break-list" aria-label="选择断线"><option value="-1">新增位置</option></select></label><label class="field">时刻<input id="break-time" type="number" step="any"></label><div class="break-actions"><button id="apply-break" class="button">添加断线</button><button id="remove-break" class="button" disabled>删除断线</button></div><button id="sync-break-all" class="button full" disabled>将此断线对齐到全部信号</button><p class="field-note">可拖动标记。此处仅添加视觉断线；跳过时间请用「画布设置 → 时间轴省略」。</p></div>
             <div class="signal-actions"><button id="move-up" class="icon-button" title="信号上移" aria-label="信号上移" data-icon="up"></button><button id="move-down" class="icon-button" title="信号下移" aria-label="信号下移" data-icon="down"></button><button id="duplicate-btn" class="icon-button" title="复制信号" aria-label="复制信号" data-icon="copy"></button><button id="delete-btn" class="icon-button danger" title="删除信号（可撤销）" aria-label="删除信号" data-icon="trash"></button></div>
           </div>
         </div>
@@ -92,15 +95,23 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           <label class="field">名称列宽<input id="label-width" type="number" min="80" max="300" step="4"></label>
           <label class="field">Z 高阻态<select id="z-style"><option value="hatch">斜线填充</option><option value="line">中线虚线</option></select></label><label class="field">X 未知态<select id="x-style"><option value="crosshatch">交叉斜线填充</option><option value="cross">交叉虚线</option></select></label>
           <button id="monochrome-btn" class="button full">全部改为黑色细线</button><div class="property-section"><div class="section-label">时间范围</div></div><div class="field-row"><label class="field">起始时刻<input id="time-start" type="number" min="-1000000" max="1000000" step="any" value="0"></label><label class="field">结束时刻<input id="time-end" type="number" min="-1000000" max="1000000" step="any" value="16"></label></div><button id="apply-time-range" class="button full">应用时间区间</button><p id="time-range-error" class="form-error" role="alert"></p><p id="time-range-summary" class="field-note" style="margin-top:8px">跨度 16 ns</p><label class="field">时间单位<select id="time-unit"><option>ps</option><option selected>ns</option><option>μs</option><option>ms</option><option>s</option><option>cycle</option></select></label><p class="field-note">更改起始时刻会整体平移波形；缩短跨度会裁去右侧超出部分，可撤销恢复。</p>
+          <section class="time-break-section" aria-labelledby="time-break-heading">
+            <div id="time-break-heading" class="section-label">时间轴省略</div>
+            <div class="field-row"><label class="field">开始时刻<input id="time-break-start" type="number" step="any"></label><label class="field">结束时刻<input id="time-break-end" type="number" step="any"></label></div>
+            <button id="add-time-break" type="button" class="button full">省略此区间</button>
+            <p id="time-break-error" class="form-error" role="alert"></p>
+            <div id="time-break-list" aria-live="polite"></div>
+            <p class="field-note">隐藏区间会同步压缩波形与时间轴；取消省略可恢复显示。</p>
+          </section>
         </div>
         
       </aside>
     </div>
   </main>
   <dialog id="add-dialog"><form id="add-form"><div class="dialog-head"><h2>添加信号</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">选择信号类型，开始绘制。</p><div class="type-options"><label><input type="radio" name="signal-type" value="digital" checked><span><span data-icon="wave"></span><strong>数字信号</strong><small>高低电平、X / Z</small></span></label><label><input type="radio" name="signal-type" value="bus"><span><span data-icon="bus"></span><strong>总线信号</strong><small>数值或文字标注</small></span></label></div><label class="field">信号名称<input id="new-name" required maxlength="64" value="signal" spellcheck="false"></label><label class="field">初始值<input id="new-value" maxlength="80" value="0" required spellcheck="false"></label><p id="add-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">添加信号</button></div></form></dialog>
-  <dialog id="bus-dialog"><form id="bus-form"><div class="dialog-head"><h2>编辑总线区间</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><label class="field">区间值<input id="bus-value" maxlength="80" required spellcheck="false" placeholder="例如 0xA5、DATA、Z"></label><div class="field-row"><label class="field">开始时刻<input id="bus-start" type="number" min="0" step="any" required></label><label class="field">结束时刻<input id="bus-end" type="number" min="0" step="any" required></label></div><p class="field-note">只修改指定区间，其他区间保持原值。</p><p id="bus-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">应用修改</button></div></form></dialog>
+  <dialog id="bus-dialog"><form id="bus-form"><div class="dialog-head"><h2>编辑总线区间</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><label class="field">区间值<input id="bus-value" maxlength="80" required spellcheck="false" placeholder="例如 0xA5、DATA、Z"></label><div class="field-row"><label class="field">开始时刻<input id="bus-start" type="number" min="0" step="any" required></label><label class="field">结束时刻<input id="bus-end" type="number" min="0" step="any" required></label></div><p id="bus-range-note" class="field-note">只修改指定区间，其他区间保持原值。</p><p id="bus-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">应用修改</button></div></form></dialog>
   <dialog id="clock-dialog"><form id="clock-form"><div class="dialog-head"><h2>生成时钟波形</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">用规则时钟填充当前信号，可随时撤销。</p><div class="field-row"><label class="field">周期<input id="clock-period" type="number" min="0.01" step="any" required value="2"></label><label class="field">高电平占空比（%）<input id="clock-duty" type="number" min="1" max="99" required value="50"></label></div><div class="field-row"><label class="field">相对起点的相位延迟<input id="clock-phase" type="number" min="0" step="any" required value="0"></label><label class="field">初始电平<select id="clock-initial"><option value="0">0 · 低电平</option><option value="1">1 · 高电平</option></select></label></div><p id="clock-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">生成时钟</button></div></form></dialog>
-  <dialog id="export-dialog" class="export-dialog"><form id="export-form"><div class="dialog-head"><h2>导出</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">仅导出波形和必要标注。</p><div class="type-options"><label><input type="radio" name="export-format" value="svg" checked><span><strong>SVG</strong><small>独立矢量路径</small></span></label><label><input type="radio" name="export-format" value="png"><span><strong>PNG</strong><small>透明或白色背景</small></span></label><label><input type="radio" name="export-format" value="pptx"><span><strong>PowerPoint</strong><small>可编辑线条与文字</small></span></label></div><div class="export-preview" id="export-preview" aria-label="导出预览"></div><div class="field-row"><label class="field">背景<select id="export-background"><option value="white">白色</option><option value="transparent">透明</option></select></label><label class="field">PNG 分辨率<select id="export-scale"><option value="1">1× · 标准</option><option value="2" selected>2× · 高清</option><option value="3">3× · 超清</option><option value="auto">自适应 · 大图</option></select></label></div><div class="export-info"><span id="export-size"></span><span id="export-format-note">独立矢量路径</span></div><p id="export-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" id="export-submit" class="button primary"><span data-icon="download"></span>下载 SVG</button></div></form></dialog>
+  <dialog id="export-dialog" class="export-dialog"><form id="export-form"><div class="dialog-head"><h2>导出</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">仅导出波形和必要标注。</p><div class="type-options"><label><input type="radio" name="export-format" value="svg" checked><span><strong>SVG</strong><small>独立矢量路径</small></span></label><label><input type="radio" name="export-format" value="png"><span><strong>PNG</strong><small>透明或白色背景</small></span></label><label><input type="radio" name="export-format" value="pptx"><span><strong>PowerPoint</strong><small>可编辑线条与文字</small></span></label></div><div class="export-preview" id="export-preview" aria-label="导出预览"></div><div class="export-width-control"><label class="field">图形宽度（px）<input id="export-width" type="number" min="220" max="16000" step="1" required aria-describedby="export-width-note"></label><button id="export-width-reset" class="button" type="button">恢复默认</button></div><p id="export-width-note" class="field-note">宽度含信号名称列；时间范围、字号、线宽与行距保持不变。</p><div class="field-row"><label class="field">背景<select id="export-background"><option value="white">白色</option><option value="transparent">透明</option></select></label><label class="field">PNG 清晰度<select id="export-scale"><option value="1">1× · 标准</option><option value="2" selected>2× · 高清</option><option value="3">3× · 超清</option><option value="auto">自适应 · 大图</option></select></label></div><div class="export-info"><span id="export-size"></span><span id="export-format-note">独立矢量路径</span></div><p id="export-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" id="export-submit" class="button primary"><span data-icon="download"></span>下载 SVG</button></div></form></dialog>
   <dialog id="help-dialog" class="help-dialog"><div class="dialog-head"><h2>从第一笔到一幅时序图</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><div class="help-steps"><div><span>1</span><section><h3>添加或选择信号</h3><p>点击「添加信号」创建数字信号或总线；点击画布左侧名称选择已有信号。</p></section></div><div><span>2</span><section><h3>用鼠标画波形</h3><p>画笔在上半格画 1、下半格画 0，也可以选定 1 / 0 / X / Z 连续涂画。总线上拖动选定时间范围，在弹窗中输入区间值；双击已有区间编辑。</p></section></div><div><span>3</span><section><h3>调整时序与样式</h3><p>直接拖动边沿调整切换时刻，按住 Shift 吸附到网格。右侧设置字体、线宽和过渡时间；填写区间起止时刻后可单独着色。</p></section></div><div><span>4</span><section><h3>保存与导出</h3><p>「项目」可保存 JSON 或包含当前图的单文件 HTML。「导出」支持 SVG、PNG 和原生可编辑 PPTX。浏览器会尝试自动保存；重要项目建议主动保存文件。</p></section></div></div><div class="shortcuts"><span><kbd>V</kbd>选择</span><span><kbd>D</kbd>画笔</span><span><kbd>Ctrl Z</kbd>撤销</span><span><kbd>Ctrl S</kbd>保存项目</span></div></dialog>
   <input id="file-input" type="file" accept=".json,application/json" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
@@ -249,19 +260,32 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     if (raw.signals.reduce((count, signal) => count + (Array.isArray(signal && signal.events) ? signal.events.length : 0), 0) > LIMITS.maxTotalEvents) fail('工程节点总数不能超过 20000');
     const signals = raw.signals.map((signal) => normalizeSignal(signal, duration));
     if (new Set(signals.map((signal) => signal.id)).size !== signals.length) fail('信号 ID 不能重复');
+    const sourceBreaks = raw.timeBreaks === undefined ? [] : raw.timeBreaks;
+    if (!Array.isArray(sourceBreaks) || sourceBreaks.length > 32) fail('最多支持 32 个时间省略区间');
+    const timeBreaks = [];
+    sourceBreaks.map((entry) => {
+      object(entry, '时间省略区间');
+      if (!finite(entry.start) || !finite(entry.end) || entry.start <= 0 || entry.end >= duration || entry.end - entry.start < EPS) fail('省略区间必须位于时间轴内部，且结束时间晚于开始时间');
+      return { start: entry.start, end: entry.end };
+    }).sort((left, right) => left.start - right.start).forEach((entry) => {
+      const previous = timeBreaks[timeBreaks.length - 1];
+      if (previous && entry.start <= previous.end + EPS) previous.end = Math.max(previous.end, entry.end);
+      else timeBreaks.push(entry);
+    });
+    if (duration - timeBreaks.reduce((total, entry) => total + entry.end - entry.start, 0) < 0.25 - EPS) fail('省略后至少需要保留 0.25 个时间单位');
     return {
-      version: VERSION, title: text(raw.title, '未命名波形', 128, '标题'), startTime, duration,
+      version: VERSION, title: text(raw.title, '未命名波形', 128, '标题'), startTime, duration, timeBreaks,
       unit: text(raw.unit, 'ns', 16, '时间单位'),
       step: number(raw.step, Math.min(1, duration), 0.001, 1000, '网格步长'), appearance: normalizeAppearance(raw.appearance), signals
     };
   }
   function createBlank() {
-    return { version: VERSION, title: '未命名波形', startTime: 0, duration: 16, unit: 'ns', step: 1, appearance: normalizeAppearance(), signals: [] };
+    return { version: VERSION, title: '未命名波形', startTime: 0, duration: 16, timeBreaks: [], unit: 'ns', step: 1, appearance: normalizeAppearance(), signals: [] };
   }
   function createDemo() {
     const make = (id, name, type, pairs) => normalizeSignal({ id, name, type, events: pairs.map(([t, value, color]) => color ? { t, value, color } : { t, value }) }, 16);
     return {
-      version: VERSION, title: 'SPI 总线时序', startTime: 0, duration: 16, unit: 'ns', step: 1, appearance: normalizeAppearance(),
+      version: VERSION, title: 'SPI 总线时序', startTime: 0, duration: 16, timeBreaks: [], unit: 'ns', step: 1, appearance: normalizeAppearance(),
       signals: [
         make('clk', 'clk', 'digital', Array.from({ length: 16 }, (_, t) => [t, String(t % 2)])),
         make('rst_n', 'rst_n', 'digital', [[0, '0'], [2, '1']]),
@@ -279,6 +303,10 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     const p = normalizeProject(raw);
     p.startTime = start;
     p.duration = duration;
+    p.timeBreaks = p.timeBreaks.filter((entry) => entry.end < duration);
+    // A shorter range can leave too little visible time. Removing the last
+    // omission restores a valid view without changing any retained samples.
+    while (duration - p.timeBreaks.reduce((total, entry) => total + entry.end - entry.start, 0) < 0.25 - EPS) p.timeBreaks.pop();
     for (const signal of p.signals) {
       signal.events = signal.events.filter((event) => event.t < duration);
       signal.breaks = signal.breaks.filter((t) => t < duration);
@@ -350,24 +378,69 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     signal.events = canonical(events);
     return signal;
   }
-  function axisMetrics(p, ppu) {
+  function axisMetrics(p, ppu, visibleDuration = p.duration) {
     const fontSize = p.appearance.fontSize * 0.8;
     const measure = (value) => Array.from(fmt(value)).reduce((width, c) => width + fontSize * (c === '.' ? 0.3 : c === '-' ? 0.36 : 0.56), 0);
     const startWidth = measure(p.startTime), endWidth = measure(p.startTime + p.duration);
     const spacing = Math.max(38, p.appearance.fontSize * 2, startWidth + 16, endWidth + 16);
-    return { spacing, startWidth, endWidth, short: p.duration * ppu < spacing };
+    return { spacing, startWidth, endWidth, short: visibleDuration * ppu < spacing };
   }
   function layoutFor(p, options) {
     const o = options || {}, a = p.appearance;
-    const ppu = number(o.pxPerUnit, 48, 0.01, 10000, '缩放比例');
     const rowHeight = number(o.rowHeight, a.rowHeight, 48, 120, '行高');
     const labelWidth = number(o.labelWidth, a.labelWidth, 80, 300, '名称列宽度');
     const showAxis = boolean(o.showAxis, a.showAxis, '显示时间轴');
-    const axisHeight = showAxis ? Math.max(58, a.fontSize * 2 + 18) : 0;
-    const metrics = axisMetrics(p, ppu);
-    const rightPadding = showAxis ? Math.max(24, metrics.endWidth * (metrics.short ? 1 : 0.5) + 8) : 24;
+    const axisHeight = showAxis ? Math.max(58, a.fontSize * 2 + 18) + (p.timeBreaks.length ? a.fontSize * 0.8 + 4 : 0) : 0;
+    const gapWidth = 20, gapTotal = p.timeBreaks.length * gapWidth;
+    const visibleDuration = p.duration - p.timeBreaks.reduce((sum, entry) => sum + entry.end - entry.start, 0);
+    const metrics = axisMetrics(p, 1, visibleDuration);
+    const shortPadding = showAxis ? Math.max(24, metrics.endWidth + 8) : 24;
+    const longPadding = showAxis ? Math.max(24, metrics.endWidth * 0.5 + 8) : 24;
+    const minimumSpan = showAxis ? Math.max(64, metrics.startWidth - labelWidth + 24) : 64;
+    const timeLabelWidth = (t) => Array.from(fmt(p.startTime + t)).reduce((sum, c) => sum + a.fontSize * 0.8 * (c === '.' ? 0.3 : c === '-' ? 0.36 : 0.56), 0);
+    const labelRows = [0, 0];
+    if (showAxis && p.timeBreaks.length) [0, ...p.timeBreaks.flatMap((entry) => [entry.start, entry.end]), p.duration].forEach((t, index) => {
+      labelRows[index % 2] += timeLabelWidth(t) + 8;
+    });
+    const minWidth = Math.ceil(Math.max(labelWidth + gapTotal + shortPadding + minimumSpan, ...labelRows.map((row) => row + 8)));
+    let ppu, rightPadding, width;
+    if (o.width !== undefined) {
+      width = number(o.width, undefined, minWidth, 16000, '导出宽度');
+      const longSpan = width - labelWidth - gapTotal - longPadding;
+      rightPadding = longSpan >= metrics.spacing ? longPadding : shortPadding;
+      ppu = (width - labelWidth - gapTotal - rightPadding) / visibleDuration;
+    } else {
+      ppu = number(o.pxPerUnit, 48, 0.01, 10000, '缩放比例');
+      rightPadding = visibleDuration * ppu < metrics.spacing ? shortPadding : longPadding;
+      width = round(labelWidth + visibleDuration * ppu + gapTotal + rightPadding);
+      // Dense absolute-time labels need room even in the editor. Extra white
+      // space changes only the outer frame, never the current waveform scale.
+      if (p.timeBreaks.length && width < minWidth) { rightPadding += minWidth - width; width = minWidth; }
+    }
+    const segments = [], gaps = [];
+    let time = 0, xx = labelWidth;
+    for (const entry of p.timeBreaks) {
+      const endX = xx + (entry.start - time) * ppu;
+      segments.push({ start: time, end: entry.start, xStart: xx, xEnd: endX });
+      gaps.push({ ...entry, xStart: endX, xEnd: endX + gapWidth });
+      xx = endX + gapWidth; time = entry.end;
+    }
+    segments.push({ start: time, end: p.duration, xStart: xx, xEnd: xx + (p.duration - time) * ppu });
+    const isTimeVisible = (t) => finite(t) && t >= 0 && t <= p.duration && !gaps.some((gap) => t > gap.start && t < gap.end);
+    const xForTime = (t) => {
+      t = Math.max(0, Math.min(p.duration, t));
+      for (const segment of segments) if (t >= segment.start && t <= segment.end) return segment.xStart + (t - segment.start) * ppu;
+      const gap = gaps.find((entry) => t > entry.start && t < entry.end);
+      return gap ? (t - gap.start <= gap.end - t ? gap.xStart : gap.xEnd) : labelWidth;
+    };
+    const timeForX = (position) => {
+      if (position <= labelWidth) return 0;
+      for (const segment of segments) if (position >= segment.xStart && position <= segment.xEnd) return round(segment.start + (position - segment.xStart) / ppu);
+      const gap = gaps.find((entry) => position > entry.xStart && position < entry.xEnd);
+      return gap ? (position - gap.xStart <= gap.xEnd - position ? gap.start : gap.end) : p.duration;
+    };
     return {
-      width: round(labelWidth + p.duration * ppu + rightPadding),
+      width, minWidth, rightPadding, visibleDuration, gapWidth, segments, gaps, xForTime, timeForX, isTimeVisible,
       height: round(HEADER_HEIGHT + p.signals.length * rowHeight + axisHeight + 8),
       headerHeight: HEADER_HEIGHT, rowHeight, labelWidth, ppu, axisHeight
     };
@@ -439,6 +512,15 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     }
     return gaps;
   }
+  function mergeIntervals(intervals) {
+    const result = [];
+    for (const interval of intervals.sort((left, right) => left[0] - right[0])) {
+      const last = result[result.length - 1];
+      if (last && interval[0] <= last[1]) last[1] = Math.max(last[1], interval[1]);
+      else result.push(interval.slice());
+    }
+    return result;
+  }
   function clipPolylineGaps(points, gaps) {
     const pieces = [];
     let current = [];
@@ -489,7 +571,9 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   function sceneFor(p, options) {
     const o = options || {}, a = p.appearance, l = layoutFor(p, o);
     const { width, height, rowHeight, labelWidth, ppu } = l;
-    const elements = [], x = (t) => round(labelWidth + t * ppu);
+    // Signal geometry is constructed in continuous time, clipped, then mapped.
+    // This preserves the exact level of finite slopes at either side of a gap.
+    const elements = [], x = (t) => round(labelWidth + t * ppu), mappedX = (t) => round(l.xForTime(t));
     const sceneIds = new Set();
     function uniqueId(id) {
       let result = id, suffix = 2;
@@ -510,24 +594,32 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       elements.push({ kind: 'text', id: uniqueId(id), x: round(xx), y: round(y), text: value, fontFamily: s.fontFamily || a.fontFamily, fontSize: s.fontSize || a.fontSize,
         bold: Boolean(s.bold), italic: Boolean(s.italic), anchor: s.anchor || 'start', fill: s.fill || '#111111', ...(s.signalId ? { signalId: s.signalId } : {}), ...(s.role ? { role: s.role } : {}) });
     }
-    const metrics = axisMetrics(p, ppu);
+    const metrics = axisMetrics(p, ppu, l.visibleDuration);
     let tick = p.step;
     while (tick * ppu < metrics.spacing) tick *= 2;
     while (p.duration / tick > 250) tick *= 2;
-    const ticks = [];
-    for (let t = 0; t <= p.duration + EPS; t += tick) ticks.push(round(t));
+    let ticks = [];
+    for (const segment of l.segments) {
+      for (let t = Math.ceil((segment.start - EPS) / tick) * tick; t <= segment.end + EPS; t += tick) ticks.push(round(t));
+    }
+    ticks = ticks.filter((t) => l.isTimeVisible(t));
     if (Math.abs(ticks[ticks.length - 1] - p.duration) > EPS) {
-      while (ticks.length > 1 && (p.duration - ticks[ticks.length - 1]) * ppu < metrics.spacing) ticks.pop();
+      while (ticks.length > 1 && mappedX(p.duration) - mappedX(ticks[ticks.length - 1]) < metrics.spacing) ticks.pop();
       ticks.push(p.duration);
     }
+    if (l.gaps.length) {
+      const required = [0, p.duration, ...l.gaps.flatMap((gap) => [gap.start, gap.end])];
+      ticks = [...new Set([...required, ...ticks.filter((t) => required.every((edge) => Math.abs(mappedX(t) - mappedX(edge)) >= metrics.spacing))])].sort((left, right) => left - right);
+    }
     const bottom = HEADER_HEIGHT + p.signals.length * rowHeight;
-    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[x(t), HEADER_HEIGHT], [x(t), bottom]], '#dedede', 0.65, null, 'dot'));
+    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[mappedX(t), HEADER_HEIGHT], [mappedX(t), bottom]], '#dedede', 0.65, null, 'dot'));
     p.signals.forEach((s, row) => {
       const signalElementStart = elements.length;
       const top = HEADER_HEIGHT + row * rowHeight, mid = top + rowHeight / 2;
       const hi = mid - 14, lo = mid + 14, fontFamily = s.fontFamily || a.fontFamily;
-      const gaps = mergedGaps(s.breaks.map(x));
-      const hatchSpacing = Math.max(8, p.duration * ppu / 1600);
+      const visibleBreaks = s.breaks.map((t, index) => ({ t, index })).filter(({ t }) => l.isTimeVisible(t));
+      const gaps = mergeIntervals([...mergedGaps(visibleBreaks.map(({ t }) => x(t))), ...p.timeBreaks.map((entry) => [x(entry.start), x(entry.end)])]);
+      const hatchSpacing = Math.max(8, l.visibleDuration * ppu / 1600);
       label(s.id + '-label', labelWidth - 18, mid + a.fontSize * 0.34, boundedText(s.name, labelWidth - 28, a.fontSize),
         { signalId: s.id, role: 'label', fontFamily, italic: a.italicLabels, bold: a.boldLabels, anchor: 'end' });
       const runs = signalRuns(s, p.duration);
@@ -554,15 +646,20 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           const borderWidth = Math.max(0.5, s.width * 0.7), hatchWidth = Math.max(0.45, Math.min(1.2, s.width * 0.5));
           line(id + '-upper', upper, color, borderWidth, s.id, null, 'pattern-boundary');
           line(id + '-lower', lower, color, borderWidth, s.id, null, 'pattern-boundary');
-          const first = Math.floor((start - labelWidth - (lo - hi)) / hatchSpacing), last = Math.ceil((end - labelWidth) / hatchSpacing);
+          const windows = l.segments.map((segment) => [Math.max(start, x(segment.start)), Math.min(end, x(segment.end))]).filter(([left, right]) => right - left > EPS);
+          for (const [left, right] of windows) {
+          const first = Math.floor((left - labelWidth - (lo - hi)) / hatchSpacing), last = Math.ceil((right - labelWidth) / hatchSpacing);
+          const visibleRegion = [[left, hi], [right, hi], [right, lo], [left, lo]];
           for (let n = first; n <= last; n++) {
             const anchor = labelWidth + n * hatchSpacing;
             const directions = state === 'X' ? [1, -1] : [1];
             for (const direction of directions) {
               let segment = clipSegmentToPolygon([anchor, direction > 0 ? lo : hi], [anchor + lo - hi, direction > 0 ? hi : lo], region);
               if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], intervalRegion);
+              if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], visibleRegion);
               if (segment) line(id + (direction > 0 ? '-hatch-' : '-crosshatch-') + n, segment, color, hatchWidth, s.id, null, 'hatch');
             }
+          }
           }
         } else if (state === 'X') {
           const yDown = (xx) => hi + (lo - hi) * (xx - runStart) / runSpan;
@@ -622,33 +719,92 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       if (gaps.length) {
         const signalElements = elements.splice(signalElementStart);
         for (const element of signalElements) {
-          if (element.kind !== 'polyline') { elements.push(element); continue; }
-          clipPolylineGaps(element.points, gaps).forEach((points, index) => {
-            elements.push({ ...element, id: index ? uniqueId(element.id + '-part-' + (index + 1)) : element.id, points });
-          });
+          if (element.kind !== 'polyline') {
+            elements.push(element.role === 'label' ? element : { ...element, x: mappedX((element.x - labelWidth) / ppu) });
+            continue;
+          }
+          let part = 0;
+          for (const segment of l.segments) {
+            const rawStart = x(segment.start), rawEnd = x(segment.end), shift = segment.xStart - rawStart;
+            clipPolylineGaps(element.points, [...gaps, [-Infinity, rawStart], [rawEnd, Infinity]]).forEach((points) => {
+              const translated = points.map(([xx, yy]) => [round(xx + shift), yy]);
+              elements.push({ ...element, id: part++ ? uniqueId(element.id + '-part-' + part) : element.id, points: translated });
+            });
+          }
         }
-        s.breaks.forEach((t, index) => {
-          const center = x(t), color = visibleColorAt(s, t, runs);
+        visibleBreaks.forEach(({ t, index }) => {
+          const center = mappedX(t), color = visibleColorAt(s, t, runs);
           for (let slash = 0; slash < 2; slash++) {
             const offset = slash ? 3 : -3;
             const points = Array.from({ length: 17 }, (_, n) => {
               const u = n / 16;
               return [center + offset + (u - 0.5) * 6 + Math.sin(u * Math.PI * 2) * 1.2, lo + 3 - u * (lo - hi + 6)];
             });
-            line(s.id + '-break-' + index + '-slash-' + slash, points, color, s.width, s.id, null, 'break');
+            clipPolylineGaps(points, l.gaps.map((gap) => [gap.xStart, gap.xEnd])).forEach((piece, part) =>
+              line(s.id + '-break-' + index + '-slash-' + slash + (part ? '-part-' + part : ''), piece, color, s.width, s.id, null, 'break'));
           }
         });
       }
+      l.gaps.forEach((gap, index) => {
+        const center = (gap.xStart + gap.xEnd) / 2;
+        for (let slash = 0; slash < 2; slash++) {
+          const color = visibleColorAt(s, slash ? gap.end : gap.start, runs);
+          const points = Array.from({ length: 17 }, (_, n) => {
+            const u = n / 16;
+            return [center + (slash ? 3 : -3) + (u - 0.5) * 6 + Math.sin(u * Math.PI * 2) * 1.2, lo + 3 - u * (lo - hi + 6)];
+          });
+          line(s.id + '-time-break-' + index + '-slash-' + slash, points, color, s.width, s.id, null, 'time-break');
+        }
+      });
     });
     if (l.axisHeight) {
       const axisY = bottom + 4, tickFont = a.fontSize * 0.8;
-      line('axis-baseline', [[labelWidth, axisY], [x(p.duration), axisY]], '#111111', 1);
-      ticks.forEach((t, i) => {
-        line('axis-tick-' + i, [[x(t), axisY], [x(t), axisY + 5]], '#111111', 1);
-        const anchor = metrics.short ? (i === 0 ? 'end' : 'start') : 'middle';
-        label('axis-value-' + i, x(t), axisY + 8 + tickFont, fmt(p.startTime + t), { fontSize: tickFont, anchor });
+      l.segments.forEach((segment, index) => line(index ? 'axis-baseline-' + index : 'axis-baseline', [[segment.xStart, axisY], [segment.xEnd, axisY]], '#111111', 1));
+      let tickLabels = ticks.map((t, i) => {
+        const leftEdge = l.gaps.some((gap) => gap.start === t), rightEdge = l.gaps.some((gap) => gap.end === t);
+        const anchor = leftEdge ? 'end' : rightEdge ? 'start' : metrics.short ? (i === 0 ? 'end' : 'start') : 'middle';
+        const value = fmt(p.startTime + t);
+        const textWidth = Array.from(value).reduce((sum, c) => sum + tickFont * (c === '.' ? 0.3 : c === '-' ? 0.36 : 0.56), 0);
+        const inset = anchor === 'end' ? textWidth : anchor === 'middle' ? textWidth / 2 : 0;
+        const labelX = o.width !== undefined || l.gaps.length ? Math.max(8 + inset, Math.min(width - 8 - textWidth + inset, mappedX(t))) : mappedX(t);
+        return { t, value, anchor, textWidth, inset, left: labelX - inset, preferred: labelX - inset, lane: 0, required: t === 0 || t === p.duration || leftEdge || rightEdge };
       });
-      label('axis-label', (labelWidth + x(p.duration)) / 2, bottom + l.axisHeight - 3, 'Time (' + p.unit + ')', { anchor: 'middle' });
+      if (l.gaps.length) {
+        const laneEnds = [-Infinity, -Infinity];
+        let crowded = false;
+        for (const item of tickLabels) {
+          item.lane = item.left >= laneEnds[0] + 8 ? 0 : 1;
+          if (item.left < laneEnds[item.lane] + 8) crowded = true;
+          laneEnds[item.lane] = Math.max(laneEnds[item.lane], item.left + item.textWidth);
+        }
+        if (crowded) {
+          // Keep every omission endpoint. Optional ticks can disappear before
+          // dense labels need horizontal displacement or leader lines.
+          tickLabels = tickLabels.filter((item) => item.required);
+          tickLabels.forEach((item, index) => { item.lane = index % 2; });
+          for (let lane = 0; lane < 2; lane++) {
+            const row = tickLabels.filter((item) => item.lane === lane);
+            let cursor = 8;
+            for (const item of row) { item.left = Math.max(item.preferred, cursor); cursor = item.left + item.textWidth + 8; }
+            cursor = width - 8;
+            for (let i = row.length - 1; i >= 0; i--) { row[i].left = Math.min(row[i].left, cursor - row[i].textWidth); cursor = row[i].left - 8; }
+          }
+        }
+      }
+      tickLabels.forEach((item, i) => {
+        const { t, value, anchor, textWidth, inset, left, lane } = item;
+        const yy = axisY + 8 + tickFont + lane * (tickFont + 4);
+        line('axis-tick-' + i, [[mappedX(t), axisY], [mappedX(t), axisY + 5]], '#111111', 1);
+        if (l.gaps.length && Math.abs(left - item.preferred) > 2) line('axis-guide-' + i,
+          [[mappedX(t), axisY + 5], [left + textWidth / 2, yy - tickFont * 0.85 - 1]], '#888888', 0.55, null, null, 'axis-label-guide');
+        label('axis-value-' + i, left + inset, yy, value, { fontSize: tickFont, anchor });
+      });
+      l.gaps.forEach((gap, index) => {
+        const center = (gap.xStart + gap.xEnd) / 2;
+        for (let slash = 0; slash < 2; slash++) line('axis-time-break-' + index + '-slash-' + slash,
+          [[center + (slash ? 3 : -3) - 2, axisY + 5], [center + (slash ? 3 : -3) + 2, axisY - 5]], '#111111', 1, null, null, 'time-break');
+      });
+      label('axis-label', (labelWidth + mappedX(p.duration)) / 2, bottom + l.axisHeight - 3, 'Time (' + p.unit + ')', { anchor: 'middle' });
     }
     return { width, height, elements };
   }
@@ -657,8 +813,14 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     const p = normalizeProject(raw), o = options || {}, l = layoutFor(p, o), scene = sceneFor(p, o);
     const idPrefix = text(o.idPrefix, 'wave', 80, 'SVG ID 前缀');
     if (!/^[A-Za-z0-9_-]+$/.test(idPrefix)) fail('SVG ID 前缀格式不正确');
-    const { width, height, rowHeight, labelWidth, ppu } = l, interactive = Boolean(o.interactive);
-    const x = (t) => round(labelWidth + t * ppu);
+    const { width, height, rowHeight, labelWidth } = l, interactive = Boolean(o.interactive);
+    const x = (t) => round(l.xForTime(t));
+    const visibleRanges = (start, end) => l.segments.map((segment) => [Math.max(start, segment.start), Math.min(end, segment.end)])
+      .filter(([left, right]) => right - left > EPS).map(([left, right]) => [x(left), x(right)]);
+    const handleBounds = (t, radius) => {
+      const segment = l.segments.find((entry) => t >= entry.start && t <= entry.end), center = x(t);
+      return [round(Math.max(segment.xStart, center - radius)), round(Math.min(segment.xEnd, center + radius))];
+    };
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(p.title)}">`, `<title>${esc(p.title)}</title>`];
     if (o.background !== 'transparent') parts.push(`<rect width="${width}" height="${height}" fill="#ffffff"/>`);
     if (interactive) p.signals.forEach((s, row) => {
@@ -666,8 +828,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       const top = HEADER_HEIGHT + row * rowHeight;
       parts.push(`<rect x="5" y="${top + 3}" width="${width - 10}" height="${rowHeight - 6}" rx="4" fill="#5577a1" fill-opacity="0.025"/>`);
       if (Number.isInteger(o.selectedEvent) && s.events[o.selectedEvent]) {
-        const start = x(s.events[o.selectedEvent].t), end = x(s.events[o.selectedEvent + 1]?.t ?? p.duration);
-        parts.push(`<rect x="${start}" y="${top + 7}" width="${end - start}" height="${rowHeight - 14}" fill="${s.events[o.selectedEvent].color || s.color}" fill-opacity="0.045" data-selection="interval"/>`);
+        for (const [start, end] of visibleRanges(s.events[o.selectedEvent].t, s.events[o.selectedEvent + 1]?.t ?? p.duration))
+          parts.push(`<rect x="${start}" y="${top + 7}" width="${round(end - start)}" height="${rowHeight - 14}" fill="${s.events[o.selectedEvent].color || s.color}" fill-opacity="0.045" data-selection="interval"/>`);
       }
     });
     let activeGroup = null;
@@ -691,20 +853,23 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       const top = HEADER_HEIGHT + row * rowHeight, mid = top + rowHeight / 2, hi = mid - 14, lo = mid + 14, sid = esc(s.id);
       parts.push(`<g data-signal-id="${sid}"><rect x="5" y="${top + 3}" width="${labelWidth - 10}" height="${rowHeight - 6}" fill="transparent" data-label="true" data-signal-id="${sid}"/>`);
       s.events.forEach((event, i) => {
-        const start = x(event.t), end = x(s.events[i + 1]?.t ?? p.duration);
-        parts.push(`<rect x="${start}" y="${top + 3}" width="${end - start}" height="${rowHeight - 6}" fill="transparent" data-signal-id="${sid}" data-segment="${i}" style="cursor:crosshair"><title>${esc(s.name)} · ${fmt(p.startTime + event.t)} ${esc(p.unit)} · ${esc(event.value)}</title></rect>`);
+        for (const [start, end] of visibleRanges(event.t, s.events[i + 1]?.t ?? p.duration))
+          parts.push(`<rect x="${start}" y="${top + 3}" width="${round(end - start)}" height="${rowHeight - 6}" fill="transparent" data-signal-id="${sid}" data-segment="${i}" style="cursor:crosshair"><title>${esc(s.name)} · ${fmt(p.startTime + event.t)} ${esc(p.unit)} · ${esc(event.value)}</title></rect>`);
       });
       const runs = signalRuns(s, p.duration);
       if (s.id === o.selectedId) s.events.forEach((event, i) => {
-        if (!i) return;
+        if (!i || !l.isTimeVisible(event.t)) return;
         const xx = x(event.t), run = runs[i];
         const isTransition = s.type === 'digital' && /^[01]$/.test(event.value) && run.previous !== event.value && (i === run.first || event.t < run.start + transitionDuration(s, run));
         const color = isTransition ? transitionColor(s, event, run) : event.color || s.color;
-        parts.push(`<g data-signal-id="${sid}" data-edge="${i}" style="cursor:ew-resize"><rect x="${xx - 11}" y="${hi - 7}" width="22" height="42" fill="transparent"/><circle cx="${xx}" cy="${mid}" r="3" fill="#ffffff" stroke="${color}" stroke-width="1"/></g>`);
+        const [left, right] = handleBounds(event.t, 11);
+        parts.push(`<g data-signal-id="${sid}" data-edge="${i}" style="cursor:ew-resize"><rect x="${left}" y="${hi - 7}" width="${round(right - left)}" height="42" fill="transparent"/><circle cx="${xx}" cy="${mid}" r="3" fill="#ffffff" stroke="${color}" stroke-width="1"/></g>`);
       });
       s.breaks.forEach((t, index) => {
+        if (!l.isTimeVisible(t)) return;
         const xx = x(t), color = visibleColorAt(s, t, runs), selected = s.id === o.selectedId && o.selectedBreak === index;
-        parts.push(`<g data-signal-id="${sid}" data-break="${index}" style="cursor:ew-resize"><title>断线 · ${fmt(p.startTime + t)} ${esc(p.unit)}</title><rect x="${xx - 12}" y="${hi - 9}" width="24" height="46" rx="3" fill="${selected ? '#5577a1' : 'transparent'}"${selected ? ' fill-opacity="0.10"' : ''}/>`);
+        const [left, right] = handleBounds(t, 12);
+        parts.push(`<g data-signal-id="${sid}" data-break="${index}" style="cursor:ew-resize"><title>断线 · ${fmt(p.startTime + t)} ${esc(p.unit)}</title><rect x="${left}" y="${hi - 9}" width="${round(right - left)}" height="46" rx="3" fill="${selected ? '#5577a1' : 'transparent'}"${selected ? ' fill-opacity="0.10"' : ''}/>`);
         if (s.id === o.selectedId) parts.push(`<circle cx="${xx}" cy="${hi - 7}" r="${selected ? 3 : 2}" fill="#ffffff" stroke="${color}" stroke-width="1"/>`);
         parts.push('</g>');
       });
@@ -1027,7 +1192,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     setField('project-title', project.title); setField('time-start',project.startTime); setField('time-end',endTime()); setField('time-unit', project.unit);
     $('time-range-summary').textContent = '跨度 ' + num(project.duration) + ' ' + project.unit;
     setField('font-family',project.appearance.fontFamily); setField('font-size',project.appearance.fontSize);
-    setField('row-height',project.appearance.rowHeight); setField('label-width',project.appearance.labelWidth);
+    setField('row-height',project.appearance.rowHeight); setField('label-width',project.appearance.labelWidth); renderTimeBreaks();
     setField('z-style',project.appearance.zStyle); setField('x-style',project.appearance.xStyle);
     $('italic-labels').checked = project.appearance.italicLabels; $('bold-labels').checked = project.appearance.boldLabels;
     $('show-axis').checked = project.appearance.showAxis; $('show-grid').checked = project.appearance.showGrid;
@@ -1054,7 +1219,22 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     const l = layout();
     const x = (event.clientX - rect.left) * svg.viewBox.baseVal.width / rect.width;
     const y = (event.clientY - rect.top) * svg.viewBox.baseVal.height / rect.height;
-    return {t:clamp((x - l.labelWidth) / ppu, 0, project.duration), x, y, scale:rect.width / svg.viewBox.baseVal.width, row:Math.floor((y - l.headerHeight) / l.rowHeight)};
+    return {t:l.timeForX(x), x, y, gap:l.gaps.find(g => x > g.xStart && x < g.xEnd), scale:rect.width / svg.viewBox.baseVal.width, row:Math.floor((y - l.headerHeight) / l.rowHeight)};
+  }
+  function visibleDragTime(time,left,right,l) {
+    time = clamp(time,left,right);
+    if (l.isTimeVisible(time)) return time;
+    const gap = l.gaps.find(g => time > g.start && time < g.end);
+    const candidates = gap ? [gap.start,gap.end].filter(t => t >= left && t <= right) : [];
+    return candidates.sort((a,b) => Math.abs(a - time) - Math.abs(b - time))[0];
+  }
+  function paintVisibleRange(s,start,end,value) {
+    let changed = false;
+    for (const segment of layout().segments) {
+      const left = Math.max(start,segment.start), right = Math.min(end,segment.end);
+      if (right > left) { C.setRange(s,left,right,value,project.duration); changed = true; }
+    }
+    if (!changed) throw new Error('该区间已省略，请先取消省略再修改。');
   }
   function eventAt(s, t) { let index = 0; for (let i = 1; i < s.events.length; i++) { if (s.events[i].t > t + 1e-8) break; index = i; } return index; }
   function rangeAt(t) { const start = Math.floor(clamp(t, 0, project.duration - 1e-8) / project.step + 1e-8) * project.step; return {start:num(start),end:num(Math.min(project.duration,start + project.step))}; }
@@ -1074,33 +1254,38 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   }
   function updateGesture(event) {
     if (!gesture) return;
-    const g = gesture, p = point(event), s = project.signals.find(item => item.id === g.signalId);
+    const g = gesture, p = point(event), l = layout(), s = project.signals.find(item => item.id === g.signalId);
     if (!s || selectedId !== g.signalId) { finishGesture(event,true); return; }
     g.moved ||= Math.abs(event.clientX - g.clientX) > 4;
     if (g.moved) lastBusClick = null;
     if (g.kind === 'break') {
       if (!g.moved) return;
-      const rawTime = g.edgeTime + p.t - g.pointerTime;
+      const rawTime = l.timeForX(p.x + g.edgeX - g.pointerX);
       const desired = event.shiftKey ? num(Math.round(rawTime / project.step) * project.step) : num(Math.round(rawTime * 1000) / 1000);
       const left = s.breaks[g.index - 1] ?? 0, right = s.breaks[g.index + 1] ?? project.duration;
       const margin = Math.min(.001,(right - left) / 1000);
-      s.breaks[g.index] = num(clamp(desired,left + margin,right - margin));
+      const nextTime = visibleDragTime(desired,left + margin,right - margin,l);
+      if (nextTime === undefined) return;
+      s.breaks[g.index] = num(nextTime);
       $('cursor-status').textContent = '断线 ' + absoluteTime(s.breaks[g.index]) + ' ' + project.unit;
       setField('break-time',absoluteTime(s.breaks[g.index])); renderCanvasSoon();
     } else if (g.kind === 'edge') {
       if (!g.moved) return;
-      const rawTime = g.edgeTime + p.t - g.pointerTime;
+      const rawTime = l.timeForX(p.x + g.edgeX - g.pointerX);
       const desired = event.shiftKey ? num(Math.round(rawTime / project.step) * project.step) : num(Math.round(rawTime * 1000) / 1000);
       const left = s.events[g.index - 1].t, right = s.events[g.index + 1]?.t ?? project.duration;
       const margin = Math.min(.001,(right - left) / 1000);
-      C.moveEvent(s,g.index,clamp(desired,left + margin,right - margin),project.duration);
+      const nextTime = visibleDragTime(desired,left + margin,right - margin,l);
+      if (nextTime === undefined) return;
+      C.moveEvent(s,g.index,nextTime,project.duration);
       $('cursor-status').textContent = absoluteTime(s.events[g.index].t) + ' ' + project.unit;
       renderCanvasSoon();
     } else {
+      if (p.gap) return;
       const r = rangeAt(p.t); g.start = Math.min(g.first.start,r.start); g.end = Math.max(g.first.end,r.end);
       if (g.kind === 'paint') {
         s.events = clone(g.events);
-        try { C.setRange(s,g.start,g.end,g.value,project.duration); selectedEvent = eventAt(s,g.start); renderCanvasSoon(); }
+        try { paintVisibleRange(s,g.start,g.end,g.value); selectedEvent = eventAt(s,g.start); renderCanvasSoon(); }
         catch (error) { finishGesture(event,true); toast(error.message,true); }
       } else {
         $('cursor-status').textContent = '总线区间 ' + absoluteTime(g.start) + '–' + absoluteTime(g.end) + ' ' + project.unit;
@@ -1116,18 +1301,19 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     const edge = event.target.closest('[data-edge]'), label = event.target.closest('[data-label]'), breakTarget = event.target.closest('[data-break]');
     const p = point(event);
     const l = layout();
+    if (p.gap && !label) return;
     if (breakTarget && !label) {
       const index = +breakTarget.dataset.break;
       selectSignal(id,eventAt(s,p.t),index); lastBusClick = null;
       event.preventDefault(); $('wave-canvas').focus({preventScroll:true});
       gesture = {pointerId:event.pointerId,signalId:id,before:currentJSON(),kind:'break',index,
-        edgeTime:s.breaks[index],pointerTime:p.t,clientX:event.clientX,moved:false};
+        edgeX:l.xForTime(s.breaks[index]),pointerX:p.x,clientX:event.clientX,moved:false};
       $('wave-canvas').setPointerCapture(event.pointerId); return;
     }
-    if (tool === 'break' && !label && p.x >= l.labelWidth && p.x <= l.labelWidth + project.duration * ppu) {
+    if (tool === 'break' && !label && p.x >= l.labelWidth && p.x <= l.xForTime(project.duration)) {
       selectedId = id; selectedEvent = eventAt(s,p.t); selectedBreak = -1; lastBusClick = null;
       const margin = Math.min(.001,project.duration / 1000);
-      const t = num(clamp(Math.round(p.t / project.step) * project.step,margin,project.duration - margin));
+      const t = visibleDragTime(num(Math.round(p.t / project.step) * project.step),margin,project.duration - margin,l);
       event.preventDefault(); $('wave-canvas').focus({preventScroll:true});
       transact(() => putBreak(t)); return;
     }
@@ -1135,13 +1321,13 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     if (!label && edgeIndex < 0 && p.x >= l.labelWidth) {
       let distance = 8 / p.scale;
       s.events.forEach((entry,index) => {
-        const delta = Math.abs(entry.t - p.t) * ppu;
-        if (index > 0 && delta < distance) { edgeIndex = index; distance = delta; }
+        const delta = Math.abs(l.xForTime(entry.t) - p.x);
+        if (index > 0 && l.isTimeVisible(entry.t) && delta < distance) { edgeIndex = index; distance = delta; }
       });
     }
     const isEdge = edgeIndex > 0;
     selectSignal(id, isEdge ? edgeIndex : eventAt(s,p.t));
-    if (label || p.x < l.labelWidth || p.x > l.labelWidth + project.duration * ppu) return;
+    if (label || p.x < l.labelWidth || p.x > l.xForTime(project.duration)) return;
     // SVG repaint replaces pointer targets, so recognize bus double-clicks on the stable canvas.
     if (s.type === 'bus' && !isEdge) {
       const last = lastBusClick;
@@ -1155,17 +1341,17 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     event.preventDefault(); $('wave-canvas').focus({preventScroll:true});
     const first = rangeAt(p.t);
     gesture = {pointerId:event.pointerId,signalId:id,before:currentJSON(),events:clone(s.events),first,start:first.start,end:first.end,clientX:event.clientX,moved:false,
-      kind:isEdge ? 'edge' : s.type === 'bus' ? 'bus' : 'paint',index:isEdge ? edgeIndex : 0,edgeTime:isEdge ? s.events[edgeIndex].t : 0,pointerTime:p.t,
+      kind:isEdge ? 'edge' : s.type === 'bus' ? 'bus' : 'paint',index:isEdge ? edgeIndex : 0,edgeX:isEdge ? l.xForTime(s.events[edgeIndex].t) : 0,pointerX:p.x,
       value:tool === 'draw' ? (p.y - l.headerHeight - p.row * l.rowHeight < l.rowHeight / 2 ? '1' : '0') : tool};
     $('wave-canvas').setPointerCapture(event.pointerId);
     if (gesture.kind === 'paint') updateGesture(event);
   });
   $('wave-canvas').addEventListener('pointermove', (event) => {
-    const p = point(event); $('cursor-status').textContent = absoluteTime(p.t).toFixed(2) + ' ' + project.unit;
+    const p = point(event); $('cursor-status').textContent = p.gap ? '省略 ' + absoluteTime(p.gap.start) + '–' + absoluteTime(p.gap.end) + ' ' + project.unit : absoluteTime(p.t).toFixed(2) + ' ' + project.unit;
     if (gesture?.pointerId === event.pointerId) updateGesture(event);
     else {
-      const s = project.signals[p.row];
-      const nearEdge = s && p.x >= layout().labelWidth && (s.events.some((entry,index) => index > 0 && Math.abs(entry.t - p.t) * ppu * p.scale < 8) || s.breaks.some(t => Math.abs(t - p.t) * ppu * p.scale < 10));
+      const s = project.signals[p.row], l = layout();
+      const nearEdge = s && !p.gap && p.x >= l.labelWidth && (s.events.some((entry,index) => index > 0 && l.isTimeVisible(entry.t) && Math.abs(l.xForTime(entry.t) - p.x) * p.scale < 8) || s.breaks.some(t => l.isTimeVisible(t) && Math.abs(l.xForTime(t) - p.x) * p.scale < 10));
       $('wave-canvas').style.cursor = nearEdge ? 'ew-resize' : tool === 'select' ? 'default' : 'crosshair';
     }
   });
@@ -1175,7 +1361,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   $('wave-canvas').addEventListener('dblclick', (event) => {
     if ($('bus-dialog').open || tool === 'break' || event.target.closest('[data-break]')) return;
     const p = point(event), s = project.signals[p.row];
-    if (s?.type !== 'bus' || p.x < layout().labelWidth) return;
+    if (s?.type !== 'bus' || p.gap || p.x < layout().labelWidth || p.x > layout().xForTime(project.duration)) return;
     selectedId = s.id; selectedEvent = eventAt(s,p.t);
     const ev = s.events[selectedEvent]; openBus(ev.t,s.events[selectedEvent + 1]?.t ?? project.duration,ev.value);
   });
@@ -1202,17 +1388,20 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   function openBus(start,end,value) {
     setField('bus-start',absoluteTime(start)); setField('bus-end',absoluteTime(end)); setField('bus-value',value);
     setTimeBounds(['bus-start','bus-end']);
+    $('bus-range-note').textContent = project.timeBreaks.length ? '只修改指定范围内的可见区间；省略区间保留原值。' : '只修改指定区间，其他区间保持原值。';
     $('bus-error').textContent = ''; openDialog('bus-dialog'); $('bus-value').select();
   }
-  function applyRange(start,end,value) {
+  function applyRange(start,end,value,visibleOnly = false) {
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < project.startTime || end > endTime() || start >= end) throw new Error('请输入有效区间：' + project.startTime + ' ≤ 开始时刻 < 结束时刻 ≤ ' + endTime());
     if (!value.trim()) throw new Error('区间值不能为空');
     start = relativeTime(start); end = relativeTime(end);
-    C.setRange(signal(),start,end,value.trim(),project.duration); selectedEvent = eventAt(signal(),start);
+    if (visibleOnly) paintVisibleRange(signal(),start,end,value.trim());
+    else C.setRange(signal(),start,end,value.trim(),project.duration);
+    selectedEvent = eventAt(signal(),start);
   }
   $('bus-form').addEventListener('submit',(event) => {
     event.preventDefault(); const start = $('bus-start').valueAsNumber, end = $('bus-end').valueAsNumber, value = $('bus-value').value;
-    if (transact(() => applyRange(start,end,value),'bus-error')) $('bus-dialog').close();
+    if (transact(() => applyRange(start,end,value,true),'bus-error')) $('bus-dialog').close();
   });
   $('apply-interval').addEventListener('click',() => { const start = $('interval-start').valueAsNumber,end = $('interval-end').valueAsNumber,value = $('interval-value').value; transact(() => applyRange(start,end,value)); });
   function colorInterval(reset = false) {
@@ -1273,6 +1462,35 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     } else { setField('time-start',startDraft); setField('time-end',endDraft); }
   }
   $('apply-time-range').addEventListener('click',applyTimeRange);
+  function renderTimeBreaks() {
+    setTimeBounds(['time-break-start','time-break-end']);
+    $('time-break-start').placeholder = absoluteTime(project.duration * .4);
+    $('time-break-end').placeholder = absoluteTime(project.duration * .8);
+    const list = $('time-break-list'); list.replaceChildren();
+    project.timeBreaks.forEach((gap,index) => {
+      const row = document.createElement('div'); row.className = 'time-break-item';
+      const label = document.createElement('span'); label.textContent = absoluteTime(gap.start) + '–' + absoluteTime(gap.end) + ' ' + project.unit;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button';
+      remove.dataset.removeTimeBreak = index; remove.textContent = '取消省略'; remove.setAttribute('aria-label','取消省略 ' + label.textContent);
+      row.append(label,remove); list.appendChild(row);
+    });
+    if (!project.timeBreaks.length) { const empty = document.createElement('p'); empty.className = 'time-break-empty'; empty.textContent = '时间轴连续'; list.appendChild(empty); }
+  }
+  function addTimeBreak() {
+    const start = relativeTime($('time-break-start').valueAsNumber), end = relativeTime($('time-break-end').valueAsNumber);
+    if (transact(() => { project.timeBreaks.push({start,end}); },'time-break-error')) {
+      $('time-break-start').value = ''; $('time-break-end').value = '';
+    }
+  }
+  $('add-time-break').addEventListener('click',addTimeBreak);
+  ['time-break-start','time-break-end'].forEach(id => {
+    $(id).addEventListener('input',() => { $('time-break-error').textContent = ''; });
+    $(id).addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); addTimeBreak(); } });
+  });
+  $('time-break-list').addEventListener('click',event => {
+    const button = event.target.closest('[data-remove-time-break]'); if (!button) return;
+    transact(() => { project.timeBreaks.splice(+button.dataset.removeTimeBreak,1); },'time-break-error');
+  });
   ['time-start','time-end'].forEach(id => {
     $(id).addEventListener('input',() => { $('time-range-error').textContent = ''; });
     $(id).addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); applyTimeRange(); } });
@@ -1297,7 +1515,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   function tab(name) { ['signal','canvas'].forEach((item) => { $(item + '-tab').classList.toggle('active',item === name); $(item + '-tab').setAttribute('aria-selected',String(item === name)); $(item + '-panel').hidden = item !== name; }); }
   $('signal-tab').addEventListener('click',() => tab('signal')); $('canvas-tab').addEventListener('click',() => tab('canvas'));
   function zoom(value) { ppu = clamp(value,.5,192); render(); }
-  function fit() { const l = layout(); zoom(($('canvas-scroll').clientWidth - l.labelWidth - 26) / project.duration); }
+  function fit() { const l = layout(); zoom(($('canvas-scroll').clientWidth - (l.width - l.visibleDuration * l.ppu)) / l.visibleDuration); }
   $('zoom-in').addEventListener('click',() => zoom(ppu * 1.25)); $('zoom-out').addEventListener('click',() => zoom(ppu / 1.25)); $('zoom-fit').addEventListener('click',fit);
   $('undo-btn').addEventListener('click',undo); $('redo-btn').addEventListener('click',redo);
   $('file-btn').addEventListener('click',() => { $('file-menu').hidden = !$('file-menu').hidden; $('file-btn').setAttribute('aria-expanded',String(!$('file-menu').hidden)); });
@@ -1323,28 +1541,55 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     catch (error) { toast('无法打开项目：' + error.message,true); }
     finally { $('file-input').value = ''; }
   });
-  const exportPpu = () => Math.min(48,12000 / project.duration);
-  function exportScale() {
-    if ($('export-scale').value !== 'auto') return +$('export-scale').value;
-    const {width,height} = C.getLayout(project,{pxPerUnit:exportPpu()});
-    return Math.min(2,16000 / width,16000 / height,Math.sqrt(24000000 / (width * height)));
+  let customExportWidth = false, exportBusy = false;
+  function defaultExportLayout() { const l = layout(); return C.getLayout(project,{pxPerUnit:Math.min(48,(12000 - l.gaps.length * l.gapWidth) / l.visibleDuration)}); }
+  function resetExportWidth() {
+    const l = defaultExportLayout(); customExportWidth = false;
+    $('export-width').value = Math.max(l.minWidth,Math.ceil(l.width));
   }
-  function exportSVG() { return C.renderSVG(project,{pxPerUnit:exportPpu(),interactive:false,background:$('export-background').value,idPrefix:'export'}); }
+  function exportSettings() {
+    const width = Number($('export-width').value), minWidth = C.getLayout(project).minWidth;
+    if (!Number.isInteger(width) || width < minWidth || width > 16000) throw new Error('图形宽度须为 ' + minWidth + '–16000 px 的整数。');
+    const l = C.getLayout(project,{width});
+    const scale = $('export-scale').value === 'auto' ? Math.min(2,16000 / l.width,16000 / l.height,Math.sqrt(24000000 / (l.width * l.height))) : +$('export-scale').value;
+    return {width,layout:l,scale};
+  }
+  function exportSVG(width) { return C.renderSVG(project,{width,interactive:false,background:$('export-background').value,idPrefix:'export'}); }
+  function pngDimensions(width,height,scale) {
+    width = Math.ceil(width * scale); height = Math.ceil(height * scale);
+    if (width > 32767 || height > 32767 || width * height > 32000000) throw new Error('图片尺寸过大，请减小图形宽度、选择「自适应 · 大图」，或导出 SVG。');
+    return {width,height};
+  }
   function exportFormat() { return document.querySelector('[name="export-format"]:checked').value; }
   function exportPreview() {
-    $('export-preview').innerHTML = exportSVG(); const svg = $('export-preview').querySelector('svg'), isPNG = exportFormat() === 'png';
-    const scale = isPNG ? exportScale() : 1; $('export-scale').disabled = !isPNG;
-    const isPPT = exportFormat() === 'pptx'; $('export-background').disabled = isPPT;
-    $('export-size').textContent = isPPT ? '原生线条、路径与文本框' : Math.ceil(svg.viewBox.baseVal.width * scale) + ' × ' + Math.ceil(svg.viewBox.baseVal.height * scale) + (isPNG ? ' px' : ' · 矢量');
-    $('export-format-note').textContent = isPPT ? '在 PPT 中可改线宽、颜色、字体' : isPNG ? '保留透明度' : '按信号分组的独立路径';
-    $('export-submit').innerHTML = icon('download') + '下载 ' + exportFormat().toUpperCase(); $('export-error').textContent = '';
+    const format = exportFormat(), isPNG = format === 'png', isPPT = format === 'pptx';
+    $('export-scale').disabled = !isPNG; $('export-background').disabled = isPPT;
+    $('export-submit').innerHTML = icon('download') + '下载 ' + format.toUpperCase();
+    $('export-format-note').textContent = isPPT ? '在 PPT 中可改线宽、颜色、字体' : isPNG ? '实际像素 = 图形宽度 × 倍率' : '按信号分组的独立路径';
+    $('export-width').removeAttribute('aria-invalid');
+    try {
+      const settings = exportSettings();
+      const size = isPNG ? pngDimensions(settings.layout.width,settings.layout.height,settings.scale) : settings.layout;
+      $('export-preview').innerHTML = exportSVG(settings.width);
+      $('export-size').textContent = size.width + ' × ' + size.height + (isPNG ? ' px' : isPPT ? ' · 图形排布' : ' px · 矢量');
+      $('export-error').textContent = ''; $('export-submit').disabled = exportBusy;
+    } catch (error) {
+      $('export-preview').replaceChildren(); $('export-size').textContent = '';
+      $('export-error').textContent = error.message; $('export-submit').disabled = true;
+      $('export-width').setAttribute('aria-invalid','true');
+    }
   }
-  $('export-btn').addEventListener('click',() => { exportPreview(); openDialog('export-dialog'); });
+  $('export-btn').addEventListener('click',() => {
+    $('export-width').min = C.getLayout(project).minWidth;
+    if (!customExportWidth) resetExportWidth();
+    exportPreview(); openDialog('export-dialog');
+  });
+  $('export-width').addEventListener('input',() => { customExportWidth = true; exportPreview(); });
+  $('export-width-reset').addEventListener('click',() => { resetExportWidth(); exportPreview(); });
   all('[name="export-format"]').forEach(el => el.addEventListener('change',exportPreview)); $('export-background').addEventListener('change',exportPreview); $('export-scale').addEventListener('change',exportPreview);
   async function pngBlob(svg,scale) {
     const doc = new DOMParser().parseFromString(svg,'image/svg+xml'); const source = doc.documentElement;
-    const width = Math.ceil(+source.getAttribute('width') * scale), height = Math.ceil(+source.getAttribute('height') * scale);
-    if (width > 32767 || height > 32767 || width * height > 32000000) throw new Error('图片尺寸过大，请选择「自适应 · 大图」，或导出 SVG 矢量图。');
+    const {width,height} = pngDimensions(+source.getAttribute('width'),+source.getAttribute('height'),scale);
     const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
     try {
       const img = new Image(); await new Promise((resolve,reject) => { img.onload = resolve; img.onerror = () => reject(new Error('波形图片渲染失败，请尝试 SVG 导出')); img.src = url; });
@@ -1356,18 +1601,19 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     } finally { URL.revokeObjectURL(url); }
   }
   $('export-form').addEventListener('submit',async (event) => {
-    event.preventDefault(); $('export-submit').disabled = true; $('export-error').textContent = '';
+    event.preventDefault(); if (exportBusy) return;
+    exportBusy = true; $('export-submit').disabled = true; $('export-error').textContent = '';
     try {
-      const format = exportFormat(), svg = exportSVG();
+      const format = exportFormat(), settings = exportSettings(), svg = exportSVG(settings.width);
       let blob;
       if (format === 'pptx') {
-        const data = await window.WavePptx.exportPptx(project,{pxPerUnit:exportPpu()});
+        const data = await window.WavePptx.exportPptx(project,{width:settings.width});
         blob = new Blob([data],{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
-      } else if (format === 'png') blob = await pngBlob(svg,exportScale());
+      } else if (format === 'png') blob = await pngBlob(svg,settings.scale);
       else blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svg],{type:'image/svg+xml;charset=utf-8'});
       download(blob,filename(format)); $('export-dialog').close(); toast('已导出 ' + format.toUpperCase());
     } catch (error) { $('export-error').textContent = error.message; }
-    finally { $('export-submit').disabled = false; }
+    finally { exportBusy = false; $('export-submit').disabled = $('export-width').getAttribute('aria-invalid') === 'true'; }
   });
   document.addEventListener('keydown',(event) => {
     if (gesture) {

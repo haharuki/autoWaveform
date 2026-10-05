@@ -142,19 +142,32 @@
     if (raw.signals.reduce((count, signal) => count + (Array.isArray(signal && signal.events) ? signal.events.length : 0), 0) > LIMITS.maxTotalEvents) fail('工程节点总数不能超过 20000');
     const signals = raw.signals.map((signal) => normalizeSignal(signal, duration));
     if (new Set(signals.map((signal) => signal.id)).size !== signals.length) fail('信号 ID 不能重复');
+    const sourceBreaks = raw.timeBreaks === undefined ? [] : raw.timeBreaks;
+    if (!Array.isArray(sourceBreaks) || sourceBreaks.length > 32) fail('最多支持 32 个时间省略区间');
+    const timeBreaks = [];
+    sourceBreaks.map((entry) => {
+      object(entry, '时间省略区间');
+      if (!finite(entry.start) || !finite(entry.end) || entry.start <= 0 || entry.end >= duration || entry.end - entry.start < EPS) fail('省略区间必须位于时间轴内部，且结束时间晚于开始时间');
+      return { start: entry.start, end: entry.end };
+    }).sort((left, right) => left.start - right.start).forEach((entry) => {
+      const previous = timeBreaks[timeBreaks.length - 1];
+      if (previous && entry.start <= previous.end + EPS) previous.end = Math.max(previous.end, entry.end);
+      else timeBreaks.push(entry);
+    });
+    if (duration - timeBreaks.reduce((total, entry) => total + entry.end - entry.start, 0) < 0.25 - EPS) fail('省略后至少需要保留 0.25 个时间单位');
     return {
-      version: VERSION, title: text(raw.title, '未命名波形', 128, '标题'), startTime, duration,
+      version: VERSION, title: text(raw.title, '未命名波形', 128, '标题'), startTime, duration, timeBreaks,
       unit: text(raw.unit, 'ns', 16, '时间单位'),
       step: number(raw.step, Math.min(1, duration), 0.001, 1000, '网格步长'), appearance: normalizeAppearance(raw.appearance), signals
     };
   }
   function createBlank() {
-    return { version: VERSION, title: '未命名波形', startTime: 0, duration: 16, unit: 'ns', step: 1, appearance: normalizeAppearance(), signals: [] };
+    return { version: VERSION, title: '未命名波形', startTime: 0, duration: 16, timeBreaks: [], unit: 'ns', step: 1, appearance: normalizeAppearance(), signals: [] };
   }
   function createDemo() {
     const make = (id, name, type, pairs) => normalizeSignal({ id, name, type, events: pairs.map(([t, value, color]) => color ? { t, value, color } : { t, value }) }, 16);
     return {
-      version: VERSION, title: 'SPI 总线时序', startTime: 0, duration: 16, unit: 'ns', step: 1, appearance: normalizeAppearance(),
+      version: VERSION, title: 'SPI 总线时序', startTime: 0, duration: 16, timeBreaks: [], unit: 'ns', step: 1, appearance: normalizeAppearance(),
       signals: [
         make('clk', 'clk', 'digital', Array.from({ length: 16 }, (_, t) => [t, String(t % 2)])),
         make('rst_n', 'rst_n', 'digital', [[0, '0'], [2, '1']]),
@@ -172,6 +185,10 @@
     const p = normalizeProject(raw);
     p.startTime = start;
     p.duration = duration;
+    p.timeBreaks = p.timeBreaks.filter((entry) => entry.end < duration);
+    // A shorter range can leave too little visible time. Removing the last
+    // omission restores a valid view without changing any retained samples.
+    while (duration - p.timeBreaks.reduce((total, entry) => total + entry.end - entry.start, 0) < 0.25 - EPS) p.timeBreaks.pop();
     for (const signal of p.signals) {
       signal.events = signal.events.filter((event) => event.t < duration);
       signal.breaks = signal.breaks.filter((t) => t < duration);
@@ -243,24 +260,69 @@
     signal.events = canonical(events);
     return signal;
   }
-  function axisMetrics(p, ppu) {
+  function axisMetrics(p, ppu, visibleDuration = p.duration) {
     const fontSize = p.appearance.fontSize * 0.8;
     const measure = (value) => Array.from(fmt(value)).reduce((width, c) => width + fontSize * (c === '.' ? 0.3 : c === '-' ? 0.36 : 0.56), 0);
     const startWidth = measure(p.startTime), endWidth = measure(p.startTime + p.duration);
     const spacing = Math.max(38, p.appearance.fontSize * 2, startWidth + 16, endWidth + 16);
-    return { spacing, startWidth, endWidth, short: p.duration * ppu < spacing };
+    return { spacing, startWidth, endWidth, short: visibleDuration * ppu < spacing };
   }
   function layoutFor(p, options) {
     const o = options || {}, a = p.appearance;
-    const ppu = number(o.pxPerUnit, 48, 0.01, 10000, '缩放比例');
     const rowHeight = number(o.rowHeight, a.rowHeight, 48, 120, '行高');
     const labelWidth = number(o.labelWidth, a.labelWidth, 80, 300, '名称列宽度');
     const showAxis = boolean(o.showAxis, a.showAxis, '显示时间轴');
-    const axisHeight = showAxis ? Math.max(58, a.fontSize * 2 + 18) : 0;
-    const metrics = axisMetrics(p, ppu);
-    const rightPadding = showAxis ? Math.max(24, metrics.endWidth * (metrics.short ? 1 : 0.5) + 8) : 24;
+    const axisHeight = showAxis ? Math.max(58, a.fontSize * 2 + 18) + (p.timeBreaks.length ? a.fontSize * 0.8 + 4 : 0) : 0;
+    const gapWidth = 20, gapTotal = p.timeBreaks.length * gapWidth;
+    const visibleDuration = p.duration - p.timeBreaks.reduce((sum, entry) => sum + entry.end - entry.start, 0);
+    const metrics = axisMetrics(p, 1, visibleDuration);
+    const shortPadding = showAxis ? Math.max(24, metrics.endWidth + 8) : 24;
+    const longPadding = showAxis ? Math.max(24, metrics.endWidth * 0.5 + 8) : 24;
+    const minimumSpan = showAxis ? Math.max(64, metrics.startWidth - labelWidth + 24) : 64;
+    const timeLabelWidth = (t) => Array.from(fmt(p.startTime + t)).reduce((sum, c) => sum + a.fontSize * 0.8 * (c === '.' ? 0.3 : c === '-' ? 0.36 : 0.56), 0);
+    const labelRows = [0, 0];
+    if (showAxis && p.timeBreaks.length) [0, ...p.timeBreaks.flatMap((entry) => [entry.start, entry.end]), p.duration].forEach((t, index) => {
+      labelRows[index % 2] += timeLabelWidth(t) + 8;
+    });
+    const minWidth = Math.ceil(Math.max(labelWidth + gapTotal + shortPadding + minimumSpan, ...labelRows.map((row) => row + 8)));
+    let ppu, rightPadding, width;
+    if (o.width !== undefined) {
+      width = number(o.width, undefined, minWidth, 16000, '导出宽度');
+      const longSpan = width - labelWidth - gapTotal - longPadding;
+      rightPadding = longSpan >= metrics.spacing ? longPadding : shortPadding;
+      ppu = (width - labelWidth - gapTotal - rightPadding) / visibleDuration;
+    } else {
+      ppu = number(o.pxPerUnit, 48, 0.01, 10000, '缩放比例');
+      rightPadding = visibleDuration * ppu < metrics.spacing ? shortPadding : longPadding;
+      width = round(labelWidth + visibleDuration * ppu + gapTotal + rightPadding);
+      // Dense absolute-time labels need room even in the editor. Extra white
+      // space changes only the outer frame, never the current waveform scale.
+      if (p.timeBreaks.length && width < minWidth) { rightPadding += minWidth - width; width = minWidth; }
+    }
+    const segments = [], gaps = [];
+    let time = 0, xx = labelWidth;
+    for (const entry of p.timeBreaks) {
+      const endX = xx + (entry.start - time) * ppu;
+      segments.push({ start: time, end: entry.start, xStart: xx, xEnd: endX });
+      gaps.push({ ...entry, xStart: endX, xEnd: endX + gapWidth });
+      xx = endX + gapWidth; time = entry.end;
+    }
+    segments.push({ start: time, end: p.duration, xStart: xx, xEnd: xx + (p.duration - time) * ppu });
+    const isTimeVisible = (t) => finite(t) && t >= 0 && t <= p.duration && !gaps.some((gap) => t > gap.start && t < gap.end);
+    const xForTime = (t) => {
+      t = Math.max(0, Math.min(p.duration, t));
+      for (const segment of segments) if (t >= segment.start && t <= segment.end) return segment.xStart + (t - segment.start) * ppu;
+      const gap = gaps.find((entry) => t > entry.start && t < entry.end);
+      return gap ? (t - gap.start <= gap.end - t ? gap.xStart : gap.xEnd) : labelWidth;
+    };
+    const timeForX = (position) => {
+      if (position <= labelWidth) return 0;
+      for (const segment of segments) if (position >= segment.xStart && position <= segment.xEnd) return round(segment.start + (position - segment.xStart) / ppu);
+      const gap = gaps.find((entry) => position > entry.xStart && position < entry.xEnd);
+      return gap ? (position - gap.xStart <= gap.xEnd - position ? gap.start : gap.end) : p.duration;
+    };
     return {
-      width: round(labelWidth + p.duration * ppu + rightPadding),
+      width, minWidth, rightPadding, visibleDuration, gapWidth, segments, gaps, xForTime, timeForX, isTimeVisible,
       height: round(HEADER_HEIGHT + p.signals.length * rowHeight + axisHeight + 8),
       headerHeight: HEADER_HEIGHT, rowHeight, labelWidth, ppu, axisHeight
     };
@@ -332,6 +394,15 @@
     }
     return gaps;
   }
+  function mergeIntervals(intervals) {
+    const result = [];
+    for (const interval of intervals.sort((left, right) => left[0] - right[0])) {
+      const last = result[result.length - 1];
+      if (last && interval[0] <= last[1]) last[1] = Math.max(last[1], interval[1]);
+      else result.push(interval.slice());
+    }
+    return result;
+  }
   function clipPolylineGaps(points, gaps) {
     const pieces = [];
     let current = [];
@@ -382,7 +453,9 @@
   function sceneFor(p, options) {
     const o = options || {}, a = p.appearance, l = layoutFor(p, o);
     const { width, height, rowHeight, labelWidth, ppu } = l;
-    const elements = [], x = (t) => round(labelWidth + t * ppu);
+    // Signal geometry is constructed in continuous time, clipped, then mapped.
+    // This preserves the exact level of finite slopes at either side of a gap.
+    const elements = [], x = (t) => round(labelWidth + t * ppu), mappedX = (t) => round(l.xForTime(t));
     const sceneIds = new Set();
     function uniqueId(id) {
       let result = id, suffix = 2;
@@ -403,24 +476,32 @@
       elements.push({ kind: 'text', id: uniqueId(id), x: round(xx), y: round(y), text: value, fontFamily: s.fontFamily || a.fontFamily, fontSize: s.fontSize || a.fontSize,
         bold: Boolean(s.bold), italic: Boolean(s.italic), anchor: s.anchor || 'start', fill: s.fill || '#111111', ...(s.signalId ? { signalId: s.signalId } : {}), ...(s.role ? { role: s.role } : {}) });
     }
-    const metrics = axisMetrics(p, ppu);
+    const metrics = axisMetrics(p, ppu, l.visibleDuration);
     let tick = p.step;
     while (tick * ppu < metrics.spacing) tick *= 2;
     while (p.duration / tick > 250) tick *= 2;
-    const ticks = [];
-    for (let t = 0; t <= p.duration + EPS; t += tick) ticks.push(round(t));
+    let ticks = [];
+    for (const segment of l.segments) {
+      for (let t = Math.ceil((segment.start - EPS) / tick) * tick; t <= segment.end + EPS; t += tick) ticks.push(round(t));
+    }
+    ticks = ticks.filter((t) => l.isTimeVisible(t));
     if (Math.abs(ticks[ticks.length - 1] - p.duration) > EPS) {
-      while (ticks.length > 1 && (p.duration - ticks[ticks.length - 1]) * ppu < metrics.spacing) ticks.pop();
+      while (ticks.length > 1 && mappedX(p.duration) - mappedX(ticks[ticks.length - 1]) < metrics.spacing) ticks.pop();
       ticks.push(p.duration);
     }
+    if (l.gaps.length) {
+      const required = [0, p.duration, ...l.gaps.flatMap((gap) => [gap.start, gap.end])];
+      ticks = [...new Set([...required, ...ticks.filter((t) => required.every((edge) => Math.abs(mappedX(t) - mappedX(edge)) >= metrics.spacing))])].sort((left, right) => left - right);
+    }
     const bottom = HEADER_HEIGHT + p.signals.length * rowHeight;
-    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[x(t), HEADER_HEIGHT], [x(t), bottom]], '#dedede', 0.65, null, 'dot'));
+    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[mappedX(t), HEADER_HEIGHT], [mappedX(t), bottom]], '#dedede', 0.65, null, 'dot'));
     p.signals.forEach((s, row) => {
       const signalElementStart = elements.length;
       const top = HEADER_HEIGHT + row * rowHeight, mid = top + rowHeight / 2;
       const hi = mid - 14, lo = mid + 14, fontFamily = s.fontFamily || a.fontFamily;
-      const gaps = mergedGaps(s.breaks.map(x));
-      const hatchSpacing = Math.max(8, p.duration * ppu / 1600);
+      const visibleBreaks = s.breaks.map((t, index) => ({ t, index })).filter(({ t }) => l.isTimeVisible(t));
+      const gaps = mergeIntervals([...mergedGaps(visibleBreaks.map(({ t }) => x(t))), ...p.timeBreaks.map((entry) => [x(entry.start), x(entry.end)])]);
+      const hatchSpacing = Math.max(8, l.visibleDuration * ppu / 1600);
       label(s.id + '-label', labelWidth - 18, mid + a.fontSize * 0.34, boundedText(s.name, labelWidth - 28, a.fontSize),
         { signalId: s.id, role: 'label', fontFamily, italic: a.italicLabels, bold: a.boldLabels, anchor: 'end' });
       const runs = signalRuns(s, p.duration);
@@ -447,15 +528,20 @@
           const borderWidth = Math.max(0.5, s.width * 0.7), hatchWidth = Math.max(0.45, Math.min(1.2, s.width * 0.5));
           line(id + '-upper', upper, color, borderWidth, s.id, null, 'pattern-boundary');
           line(id + '-lower', lower, color, borderWidth, s.id, null, 'pattern-boundary');
-          const first = Math.floor((start - labelWidth - (lo - hi)) / hatchSpacing), last = Math.ceil((end - labelWidth) / hatchSpacing);
+          const windows = l.segments.map((segment) => [Math.max(start, x(segment.start)), Math.min(end, x(segment.end))]).filter(([left, right]) => right - left > EPS);
+          for (const [left, right] of windows) {
+          const first = Math.floor((left - labelWidth - (lo - hi)) / hatchSpacing), last = Math.ceil((right - labelWidth) / hatchSpacing);
+          const visibleRegion = [[left, hi], [right, hi], [right, lo], [left, lo]];
           for (let n = first; n <= last; n++) {
             const anchor = labelWidth + n * hatchSpacing;
             const directions = state === 'X' ? [1, -1] : [1];
             for (const direction of directions) {
               let segment = clipSegmentToPolygon([anchor, direction > 0 ? lo : hi], [anchor + lo - hi, direction > 0 ? hi : lo], region);
               if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], intervalRegion);
+              if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], visibleRegion);
               if (segment) line(id + (direction > 0 ? '-hatch-' : '-crosshatch-') + n, segment, color, hatchWidth, s.id, null, 'hatch');
             }
+          }
           }
         } else if (state === 'X') {
           const yDown = (xx) => hi + (lo - hi) * (xx - runStart) / runSpan;
@@ -515,33 +601,92 @@
       if (gaps.length) {
         const signalElements = elements.splice(signalElementStart);
         for (const element of signalElements) {
-          if (element.kind !== 'polyline') { elements.push(element); continue; }
-          clipPolylineGaps(element.points, gaps).forEach((points, index) => {
-            elements.push({ ...element, id: index ? uniqueId(element.id + '-part-' + (index + 1)) : element.id, points });
-          });
+          if (element.kind !== 'polyline') {
+            elements.push(element.role === 'label' ? element : { ...element, x: mappedX((element.x - labelWidth) / ppu) });
+            continue;
+          }
+          let part = 0;
+          for (const segment of l.segments) {
+            const rawStart = x(segment.start), rawEnd = x(segment.end), shift = segment.xStart - rawStart;
+            clipPolylineGaps(element.points, [...gaps, [-Infinity, rawStart], [rawEnd, Infinity]]).forEach((points) => {
+              const translated = points.map(([xx, yy]) => [round(xx + shift), yy]);
+              elements.push({ ...element, id: part++ ? uniqueId(element.id + '-part-' + part) : element.id, points: translated });
+            });
+          }
         }
-        s.breaks.forEach((t, index) => {
-          const center = x(t), color = visibleColorAt(s, t, runs);
+        visibleBreaks.forEach(({ t, index }) => {
+          const center = mappedX(t), color = visibleColorAt(s, t, runs);
           for (let slash = 0; slash < 2; slash++) {
             const offset = slash ? 3 : -3;
             const points = Array.from({ length: 17 }, (_, n) => {
               const u = n / 16;
               return [center + offset + (u - 0.5) * 6 + Math.sin(u * Math.PI * 2) * 1.2, lo + 3 - u * (lo - hi + 6)];
             });
-            line(s.id + '-break-' + index + '-slash-' + slash, points, color, s.width, s.id, null, 'break');
+            clipPolylineGaps(points, l.gaps.map((gap) => [gap.xStart, gap.xEnd])).forEach((piece, part) =>
+              line(s.id + '-break-' + index + '-slash-' + slash + (part ? '-part-' + part : ''), piece, color, s.width, s.id, null, 'break'));
           }
         });
       }
+      l.gaps.forEach((gap, index) => {
+        const center = (gap.xStart + gap.xEnd) / 2;
+        for (let slash = 0; slash < 2; slash++) {
+          const color = visibleColorAt(s, slash ? gap.end : gap.start, runs);
+          const points = Array.from({ length: 17 }, (_, n) => {
+            const u = n / 16;
+            return [center + (slash ? 3 : -3) + (u - 0.5) * 6 + Math.sin(u * Math.PI * 2) * 1.2, lo + 3 - u * (lo - hi + 6)];
+          });
+          line(s.id + '-time-break-' + index + '-slash-' + slash, points, color, s.width, s.id, null, 'time-break');
+        }
+      });
     });
     if (l.axisHeight) {
       const axisY = bottom + 4, tickFont = a.fontSize * 0.8;
-      line('axis-baseline', [[labelWidth, axisY], [x(p.duration), axisY]], '#111111', 1);
-      ticks.forEach((t, i) => {
-        line('axis-tick-' + i, [[x(t), axisY], [x(t), axisY + 5]], '#111111', 1);
-        const anchor = metrics.short ? (i === 0 ? 'end' : 'start') : 'middle';
-        label('axis-value-' + i, x(t), axisY + 8 + tickFont, fmt(p.startTime + t), { fontSize: tickFont, anchor });
+      l.segments.forEach((segment, index) => line(index ? 'axis-baseline-' + index : 'axis-baseline', [[segment.xStart, axisY], [segment.xEnd, axisY]], '#111111', 1));
+      let tickLabels = ticks.map((t, i) => {
+        const leftEdge = l.gaps.some((gap) => gap.start === t), rightEdge = l.gaps.some((gap) => gap.end === t);
+        const anchor = leftEdge ? 'end' : rightEdge ? 'start' : metrics.short ? (i === 0 ? 'end' : 'start') : 'middle';
+        const value = fmt(p.startTime + t);
+        const textWidth = Array.from(value).reduce((sum, c) => sum + tickFont * (c === '.' ? 0.3 : c === '-' ? 0.36 : 0.56), 0);
+        const inset = anchor === 'end' ? textWidth : anchor === 'middle' ? textWidth / 2 : 0;
+        const labelX = o.width !== undefined || l.gaps.length ? Math.max(8 + inset, Math.min(width - 8 - textWidth + inset, mappedX(t))) : mappedX(t);
+        return { t, value, anchor, textWidth, inset, left: labelX - inset, preferred: labelX - inset, lane: 0, required: t === 0 || t === p.duration || leftEdge || rightEdge };
       });
-      label('axis-label', (labelWidth + x(p.duration)) / 2, bottom + l.axisHeight - 3, 'Time (' + p.unit + ')', { anchor: 'middle' });
+      if (l.gaps.length) {
+        const laneEnds = [-Infinity, -Infinity];
+        let crowded = false;
+        for (const item of tickLabels) {
+          item.lane = item.left >= laneEnds[0] + 8 ? 0 : 1;
+          if (item.left < laneEnds[item.lane] + 8) crowded = true;
+          laneEnds[item.lane] = Math.max(laneEnds[item.lane], item.left + item.textWidth);
+        }
+        if (crowded) {
+          // Keep every omission endpoint. Optional ticks can disappear before
+          // dense labels need horizontal displacement or leader lines.
+          tickLabels = tickLabels.filter((item) => item.required);
+          tickLabels.forEach((item, index) => { item.lane = index % 2; });
+          for (let lane = 0; lane < 2; lane++) {
+            const row = tickLabels.filter((item) => item.lane === lane);
+            let cursor = 8;
+            for (const item of row) { item.left = Math.max(item.preferred, cursor); cursor = item.left + item.textWidth + 8; }
+            cursor = width - 8;
+            for (let i = row.length - 1; i >= 0; i--) { row[i].left = Math.min(row[i].left, cursor - row[i].textWidth); cursor = row[i].left - 8; }
+          }
+        }
+      }
+      tickLabels.forEach((item, i) => {
+        const { t, value, anchor, textWidth, inset, left, lane } = item;
+        const yy = axisY + 8 + tickFont + lane * (tickFont + 4);
+        line('axis-tick-' + i, [[mappedX(t), axisY], [mappedX(t), axisY + 5]], '#111111', 1);
+        if (l.gaps.length && Math.abs(left - item.preferred) > 2) line('axis-guide-' + i,
+          [[mappedX(t), axisY + 5], [left + textWidth / 2, yy - tickFont * 0.85 - 1]], '#888888', 0.55, null, null, 'axis-label-guide');
+        label('axis-value-' + i, left + inset, yy, value, { fontSize: tickFont, anchor });
+      });
+      l.gaps.forEach((gap, index) => {
+        const center = (gap.xStart + gap.xEnd) / 2;
+        for (let slash = 0; slash < 2; slash++) line('axis-time-break-' + index + '-slash-' + slash,
+          [[center + (slash ? 3 : -3) - 2, axisY + 5], [center + (slash ? 3 : -3) + 2, axisY - 5]], '#111111', 1, null, null, 'time-break');
+      });
+      label('axis-label', (labelWidth + mappedX(p.duration)) / 2, bottom + l.axisHeight - 3, 'Time (' + p.unit + ')', { anchor: 'middle' });
     }
     return { width, height, elements };
   }
@@ -550,8 +695,14 @@
     const p = normalizeProject(raw), o = options || {}, l = layoutFor(p, o), scene = sceneFor(p, o);
     const idPrefix = text(o.idPrefix, 'wave', 80, 'SVG ID 前缀');
     if (!/^[A-Za-z0-9_-]+$/.test(idPrefix)) fail('SVG ID 前缀格式不正确');
-    const { width, height, rowHeight, labelWidth, ppu } = l, interactive = Boolean(o.interactive);
-    const x = (t) => round(labelWidth + t * ppu);
+    const { width, height, rowHeight, labelWidth } = l, interactive = Boolean(o.interactive);
+    const x = (t) => round(l.xForTime(t));
+    const visibleRanges = (start, end) => l.segments.map((segment) => [Math.max(start, segment.start), Math.min(end, segment.end)])
+      .filter(([left, right]) => right - left > EPS).map(([left, right]) => [x(left), x(right)]);
+    const handleBounds = (t, radius) => {
+      const segment = l.segments.find((entry) => t >= entry.start && t <= entry.end), center = x(t);
+      return [round(Math.max(segment.xStart, center - radius)), round(Math.min(segment.xEnd, center + radius))];
+    };
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(p.title)}">`, `<title>${esc(p.title)}</title>`];
     if (o.background !== 'transparent') parts.push(`<rect width="${width}" height="${height}" fill="#ffffff"/>`);
     if (interactive) p.signals.forEach((s, row) => {
@@ -559,8 +710,8 @@
       const top = HEADER_HEIGHT + row * rowHeight;
       parts.push(`<rect x="5" y="${top + 3}" width="${width - 10}" height="${rowHeight - 6}" rx="4" fill="#5577a1" fill-opacity="0.025"/>`);
       if (Number.isInteger(o.selectedEvent) && s.events[o.selectedEvent]) {
-        const start = x(s.events[o.selectedEvent].t), end = x(s.events[o.selectedEvent + 1]?.t ?? p.duration);
-        parts.push(`<rect x="${start}" y="${top + 7}" width="${end - start}" height="${rowHeight - 14}" fill="${s.events[o.selectedEvent].color || s.color}" fill-opacity="0.045" data-selection="interval"/>`);
+        for (const [start, end] of visibleRanges(s.events[o.selectedEvent].t, s.events[o.selectedEvent + 1]?.t ?? p.duration))
+          parts.push(`<rect x="${start}" y="${top + 7}" width="${round(end - start)}" height="${rowHeight - 14}" fill="${s.events[o.selectedEvent].color || s.color}" fill-opacity="0.045" data-selection="interval"/>`);
       }
     });
     let activeGroup = null;
@@ -584,20 +735,23 @@
       const top = HEADER_HEIGHT + row * rowHeight, mid = top + rowHeight / 2, hi = mid - 14, lo = mid + 14, sid = esc(s.id);
       parts.push(`<g data-signal-id="${sid}"><rect x="5" y="${top + 3}" width="${labelWidth - 10}" height="${rowHeight - 6}" fill="transparent" data-label="true" data-signal-id="${sid}"/>`);
       s.events.forEach((event, i) => {
-        const start = x(event.t), end = x(s.events[i + 1]?.t ?? p.duration);
-        parts.push(`<rect x="${start}" y="${top + 3}" width="${end - start}" height="${rowHeight - 6}" fill="transparent" data-signal-id="${sid}" data-segment="${i}" style="cursor:crosshair"><title>${esc(s.name)} · ${fmt(p.startTime + event.t)} ${esc(p.unit)} · ${esc(event.value)}</title></rect>`);
+        for (const [start, end] of visibleRanges(event.t, s.events[i + 1]?.t ?? p.duration))
+          parts.push(`<rect x="${start}" y="${top + 3}" width="${round(end - start)}" height="${rowHeight - 6}" fill="transparent" data-signal-id="${sid}" data-segment="${i}" style="cursor:crosshair"><title>${esc(s.name)} · ${fmt(p.startTime + event.t)} ${esc(p.unit)} · ${esc(event.value)}</title></rect>`);
       });
       const runs = signalRuns(s, p.duration);
       if (s.id === o.selectedId) s.events.forEach((event, i) => {
-        if (!i) return;
+        if (!i || !l.isTimeVisible(event.t)) return;
         const xx = x(event.t), run = runs[i];
         const isTransition = s.type === 'digital' && /^[01]$/.test(event.value) && run.previous !== event.value && (i === run.first || event.t < run.start + transitionDuration(s, run));
         const color = isTransition ? transitionColor(s, event, run) : event.color || s.color;
-        parts.push(`<g data-signal-id="${sid}" data-edge="${i}" style="cursor:ew-resize"><rect x="${xx - 11}" y="${hi - 7}" width="22" height="42" fill="transparent"/><circle cx="${xx}" cy="${mid}" r="3" fill="#ffffff" stroke="${color}" stroke-width="1"/></g>`);
+        const [left, right] = handleBounds(event.t, 11);
+        parts.push(`<g data-signal-id="${sid}" data-edge="${i}" style="cursor:ew-resize"><rect x="${left}" y="${hi - 7}" width="${round(right - left)}" height="42" fill="transparent"/><circle cx="${xx}" cy="${mid}" r="3" fill="#ffffff" stroke="${color}" stroke-width="1"/></g>`);
       });
       s.breaks.forEach((t, index) => {
+        if (!l.isTimeVisible(t)) return;
         const xx = x(t), color = visibleColorAt(s, t, runs), selected = s.id === o.selectedId && o.selectedBreak === index;
-        parts.push(`<g data-signal-id="${sid}" data-break="${index}" style="cursor:ew-resize"><title>断线 · ${fmt(p.startTime + t)} ${esc(p.unit)}</title><rect x="${xx - 12}" y="${hi - 9}" width="24" height="46" rx="3" fill="${selected ? '#5577a1' : 'transparent'}"${selected ? ' fill-opacity="0.10"' : ''}/>`);
+        const [left, right] = handleBounds(t, 12);
+        parts.push(`<g data-signal-id="${sid}" data-break="${index}" style="cursor:ew-resize"><title>断线 · ${fmt(p.startTime + t)} ${esc(p.unit)}</title><rect x="${left}" y="${hi - 9}" width="${round(right - left)}" height="46" rx="3" fill="${selected ? '#5577a1' : 'transparent'}"${selected ? ' fill-opacity="0.10"' : ''}/>`);
         if (s.id === o.selectedId) parts.push(`<circle cx="${xx}" cy="${hi - 7}" r="${selected ? 3 : 2}" fill="#ffffff" stroke="${color}" stroke-width="1"/>`);
         parts.push('</g>');
       });

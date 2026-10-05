@@ -159,7 +159,7 @@
     setField('project-title', project.title); setField('time-start',project.startTime); setField('time-end',endTime()); setField('time-unit', project.unit);
     $('time-range-summary').textContent = '跨度 ' + num(project.duration) + ' ' + project.unit;
     setField('font-family',project.appearance.fontFamily); setField('font-size',project.appearance.fontSize);
-    setField('row-height',project.appearance.rowHeight); setField('label-width',project.appearance.labelWidth);
+    setField('row-height',project.appearance.rowHeight); setField('label-width',project.appearance.labelWidth); renderTimeBreaks();
     setField('z-style',project.appearance.zStyle); setField('x-style',project.appearance.xStyle);
     $('italic-labels').checked = project.appearance.italicLabels; $('bold-labels').checked = project.appearance.boldLabels;
     $('show-axis').checked = project.appearance.showAxis; $('show-grid').checked = project.appearance.showGrid;
@@ -186,7 +186,22 @@
     const l = layout();
     const x = (event.clientX - rect.left) * svg.viewBox.baseVal.width / rect.width;
     const y = (event.clientY - rect.top) * svg.viewBox.baseVal.height / rect.height;
-    return {t:clamp((x - l.labelWidth) / ppu, 0, project.duration), x, y, scale:rect.width / svg.viewBox.baseVal.width, row:Math.floor((y - l.headerHeight) / l.rowHeight)};
+    return {t:l.timeForX(x), x, y, gap:l.gaps.find(g => x > g.xStart && x < g.xEnd), scale:rect.width / svg.viewBox.baseVal.width, row:Math.floor((y - l.headerHeight) / l.rowHeight)};
+  }
+  function visibleDragTime(time,left,right,l) {
+    time = clamp(time,left,right);
+    if (l.isTimeVisible(time)) return time;
+    const gap = l.gaps.find(g => time > g.start && time < g.end);
+    const candidates = gap ? [gap.start,gap.end].filter(t => t >= left && t <= right) : [];
+    return candidates.sort((a,b) => Math.abs(a - time) - Math.abs(b - time))[0];
+  }
+  function paintVisibleRange(s,start,end,value) {
+    let changed = false;
+    for (const segment of layout().segments) {
+      const left = Math.max(start,segment.start), right = Math.min(end,segment.end);
+      if (right > left) { C.setRange(s,left,right,value,project.duration); changed = true; }
+    }
+    if (!changed) throw new Error('该区间已省略，请先取消省略再修改。');
   }
   function eventAt(s, t) { let index = 0; for (let i = 1; i < s.events.length; i++) { if (s.events[i].t > t + 1e-8) break; index = i; } return index; }
   function rangeAt(t) { const start = Math.floor(clamp(t, 0, project.duration - 1e-8) / project.step + 1e-8) * project.step; return {start:num(start),end:num(Math.min(project.duration,start + project.step))}; }
@@ -206,33 +221,38 @@
   }
   function updateGesture(event) {
     if (!gesture) return;
-    const g = gesture, p = point(event), s = project.signals.find(item => item.id === g.signalId);
+    const g = gesture, p = point(event), l = layout(), s = project.signals.find(item => item.id === g.signalId);
     if (!s || selectedId !== g.signalId) { finishGesture(event,true); return; }
     g.moved ||= Math.abs(event.clientX - g.clientX) > 4;
     if (g.moved) lastBusClick = null;
     if (g.kind === 'break') {
       if (!g.moved) return;
-      const rawTime = g.edgeTime + p.t - g.pointerTime;
+      const rawTime = l.timeForX(p.x + g.edgeX - g.pointerX);
       const desired = event.shiftKey ? num(Math.round(rawTime / project.step) * project.step) : num(Math.round(rawTime * 1000) / 1000);
       const left = s.breaks[g.index - 1] ?? 0, right = s.breaks[g.index + 1] ?? project.duration;
       const margin = Math.min(.001,(right - left) / 1000);
-      s.breaks[g.index] = num(clamp(desired,left + margin,right - margin));
+      const nextTime = visibleDragTime(desired,left + margin,right - margin,l);
+      if (nextTime === undefined) return;
+      s.breaks[g.index] = num(nextTime);
       $('cursor-status').textContent = '断线 ' + absoluteTime(s.breaks[g.index]) + ' ' + project.unit;
       setField('break-time',absoluteTime(s.breaks[g.index])); renderCanvasSoon();
     } else if (g.kind === 'edge') {
       if (!g.moved) return;
-      const rawTime = g.edgeTime + p.t - g.pointerTime;
+      const rawTime = l.timeForX(p.x + g.edgeX - g.pointerX);
       const desired = event.shiftKey ? num(Math.round(rawTime / project.step) * project.step) : num(Math.round(rawTime * 1000) / 1000);
       const left = s.events[g.index - 1].t, right = s.events[g.index + 1]?.t ?? project.duration;
       const margin = Math.min(.001,(right - left) / 1000);
-      C.moveEvent(s,g.index,clamp(desired,left + margin,right - margin),project.duration);
+      const nextTime = visibleDragTime(desired,left + margin,right - margin,l);
+      if (nextTime === undefined) return;
+      C.moveEvent(s,g.index,nextTime,project.duration);
       $('cursor-status').textContent = absoluteTime(s.events[g.index].t) + ' ' + project.unit;
       renderCanvasSoon();
     } else {
+      if (p.gap) return;
       const r = rangeAt(p.t); g.start = Math.min(g.first.start,r.start); g.end = Math.max(g.first.end,r.end);
       if (g.kind === 'paint') {
         s.events = clone(g.events);
-        try { C.setRange(s,g.start,g.end,g.value,project.duration); selectedEvent = eventAt(s,g.start); renderCanvasSoon(); }
+        try { paintVisibleRange(s,g.start,g.end,g.value); selectedEvent = eventAt(s,g.start); renderCanvasSoon(); }
         catch (error) { finishGesture(event,true); toast(error.message,true); }
       } else {
         $('cursor-status').textContent = '总线区间 ' + absoluteTime(g.start) + '–' + absoluteTime(g.end) + ' ' + project.unit;
@@ -248,18 +268,19 @@
     const edge = event.target.closest('[data-edge]'), label = event.target.closest('[data-label]'), breakTarget = event.target.closest('[data-break]');
     const p = point(event);
     const l = layout();
+    if (p.gap && !label) return;
     if (breakTarget && !label) {
       const index = +breakTarget.dataset.break;
       selectSignal(id,eventAt(s,p.t),index); lastBusClick = null;
       event.preventDefault(); $('wave-canvas').focus({preventScroll:true});
       gesture = {pointerId:event.pointerId,signalId:id,before:currentJSON(),kind:'break',index,
-        edgeTime:s.breaks[index],pointerTime:p.t,clientX:event.clientX,moved:false};
+        edgeX:l.xForTime(s.breaks[index]),pointerX:p.x,clientX:event.clientX,moved:false};
       $('wave-canvas').setPointerCapture(event.pointerId); return;
     }
-    if (tool === 'break' && !label && p.x >= l.labelWidth && p.x <= l.labelWidth + project.duration * ppu) {
+    if (tool === 'break' && !label && p.x >= l.labelWidth && p.x <= l.xForTime(project.duration)) {
       selectedId = id; selectedEvent = eventAt(s,p.t); selectedBreak = -1; lastBusClick = null;
       const margin = Math.min(.001,project.duration / 1000);
-      const t = num(clamp(Math.round(p.t / project.step) * project.step,margin,project.duration - margin));
+      const t = visibleDragTime(num(Math.round(p.t / project.step) * project.step),margin,project.duration - margin,l);
       event.preventDefault(); $('wave-canvas').focus({preventScroll:true});
       transact(() => putBreak(t)); return;
     }
@@ -267,13 +288,13 @@
     if (!label && edgeIndex < 0 && p.x >= l.labelWidth) {
       let distance = 8 / p.scale;
       s.events.forEach((entry,index) => {
-        const delta = Math.abs(entry.t - p.t) * ppu;
-        if (index > 0 && delta < distance) { edgeIndex = index; distance = delta; }
+        const delta = Math.abs(l.xForTime(entry.t) - p.x);
+        if (index > 0 && l.isTimeVisible(entry.t) && delta < distance) { edgeIndex = index; distance = delta; }
       });
     }
     const isEdge = edgeIndex > 0;
     selectSignal(id, isEdge ? edgeIndex : eventAt(s,p.t));
-    if (label || p.x < l.labelWidth || p.x > l.labelWidth + project.duration * ppu) return;
+    if (label || p.x < l.labelWidth || p.x > l.xForTime(project.duration)) return;
     // SVG repaint replaces pointer targets, so recognize bus double-clicks on the stable canvas.
     if (s.type === 'bus' && !isEdge) {
       const last = lastBusClick;
@@ -287,17 +308,17 @@
     event.preventDefault(); $('wave-canvas').focus({preventScroll:true});
     const first = rangeAt(p.t);
     gesture = {pointerId:event.pointerId,signalId:id,before:currentJSON(),events:clone(s.events),first,start:first.start,end:first.end,clientX:event.clientX,moved:false,
-      kind:isEdge ? 'edge' : s.type === 'bus' ? 'bus' : 'paint',index:isEdge ? edgeIndex : 0,edgeTime:isEdge ? s.events[edgeIndex].t : 0,pointerTime:p.t,
+      kind:isEdge ? 'edge' : s.type === 'bus' ? 'bus' : 'paint',index:isEdge ? edgeIndex : 0,edgeX:isEdge ? l.xForTime(s.events[edgeIndex].t) : 0,pointerX:p.x,
       value:tool === 'draw' ? (p.y - l.headerHeight - p.row * l.rowHeight < l.rowHeight / 2 ? '1' : '0') : tool};
     $('wave-canvas').setPointerCapture(event.pointerId);
     if (gesture.kind === 'paint') updateGesture(event);
   });
   $('wave-canvas').addEventListener('pointermove', (event) => {
-    const p = point(event); $('cursor-status').textContent = absoluteTime(p.t).toFixed(2) + ' ' + project.unit;
+    const p = point(event); $('cursor-status').textContent = p.gap ? '省略 ' + absoluteTime(p.gap.start) + '–' + absoluteTime(p.gap.end) + ' ' + project.unit : absoluteTime(p.t).toFixed(2) + ' ' + project.unit;
     if (gesture?.pointerId === event.pointerId) updateGesture(event);
     else {
-      const s = project.signals[p.row];
-      const nearEdge = s && p.x >= layout().labelWidth && (s.events.some((entry,index) => index > 0 && Math.abs(entry.t - p.t) * ppu * p.scale < 8) || s.breaks.some(t => Math.abs(t - p.t) * ppu * p.scale < 10));
+      const s = project.signals[p.row], l = layout();
+      const nearEdge = s && !p.gap && p.x >= l.labelWidth && (s.events.some((entry,index) => index > 0 && l.isTimeVisible(entry.t) && Math.abs(l.xForTime(entry.t) - p.x) * p.scale < 8) || s.breaks.some(t => l.isTimeVisible(t) && Math.abs(l.xForTime(t) - p.x) * p.scale < 10));
       $('wave-canvas').style.cursor = nearEdge ? 'ew-resize' : tool === 'select' ? 'default' : 'crosshair';
     }
   });
@@ -307,7 +328,7 @@
   $('wave-canvas').addEventListener('dblclick', (event) => {
     if ($('bus-dialog').open || tool === 'break' || event.target.closest('[data-break]')) return;
     const p = point(event), s = project.signals[p.row];
-    if (s?.type !== 'bus' || p.x < layout().labelWidth) return;
+    if (s?.type !== 'bus' || p.gap || p.x < layout().labelWidth || p.x > layout().xForTime(project.duration)) return;
     selectedId = s.id; selectedEvent = eventAt(s,p.t);
     const ev = s.events[selectedEvent]; openBus(ev.t,s.events[selectedEvent + 1]?.t ?? project.duration,ev.value);
   });
@@ -334,17 +355,20 @@
   function openBus(start,end,value) {
     setField('bus-start',absoluteTime(start)); setField('bus-end',absoluteTime(end)); setField('bus-value',value);
     setTimeBounds(['bus-start','bus-end']);
+    $('bus-range-note').textContent = project.timeBreaks.length ? '只修改指定范围内的可见区间；省略区间保留原值。' : '只修改指定区间，其他区间保持原值。';
     $('bus-error').textContent = ''; openDialog('bus-dialog'); $('bus-value').select();
   }
-  function applyRange(start,end,value) {
+  function applyRange(start,end,value,visibleOnly = false) {
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < project.startTime || end > endTime() || start >= end) throw new Error('请输入有效区间：' + project.startTime + ' ≤ 开始时刻 < 结束时刻 ≤ ' + endTime());
     if (!value.trim()) throw new Error('区间值不能为空');
     start = relativeTime(start); end = relativeTime(end);
-    C.setRange(signal(),start,end,value.trim(),project.duration); selectedEvent = eventAt(signal(),start);
+    if (visibleOnly) paintVisibleRange(signal(),start,end,value.trim());
+    else C.setRange(signal(),start,end,value.trim(),project.duration);
+    selectedEvent = eventAt(signal(),start);
   }
   $('bus-form').addEventListener('submit',(event) => {
     event.preventDefault(); const start = $('bus-start').valueAsNumber, end = $('bus-end').valueAsNumber, value = $('bus-value').value;
-    if (transact(() => applyRange(start,end,value),'bus-error')) $('bus-dialog').close();
+    if (transact(() => applyRange(start,end,value,true),'bus-error')) $('bus-dialog').close();
   });
   $('apply-interval').addEventListener('click',() => { const start = $('interval-start').valueAsNumber,end = $('interval-end').valueAsNumber,value = $('interval-value').value; transact(() => applyRange(start,end,value)); });
   function colorInterval(reset = false) {
@@ -405,6 +429,35 @@
     } else { setField('time-start',startDraft); setField('time-end',endDraft); }
   }
   $('apply-time-range').addEventListener('click',applyTimeRange);
+  function renderTimeBreaks() {
+    setTimeBounds(['time-break-start','time-break-end']);
+    $('time-break-start').placeholder = absoluteTime(project.duration * .4);
+    $('time-break-end').placeholder = absoluteTime(project.duration * .8);
+    const list = $('time-break-list'); list.replaceChildren();
+    project.timeBreaks.forEach((gap,index) => {
+      const row = document.createElement('div'); row.className = 'time-break-item';
+      const label = document.createElement('span'); label.textContent = absoluteTime(gap.start) + '–' + absoluteTime(gap.end) + ' ' + project.unit;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button';
+      remove.dataset.removeTimeBreak = index; remove.textContent = '取消省略'; remove.setAttribute('aria-label','取消省略 ' + label.textContent);
+      row.append(label,remove); list.appendChild(row);
+    });
+    if (!project.timeBreaks.length) { const empty = document.createElement('p'); empty.className = 'time-break-empty'; empty.textContent = '时间轴连续'; list.appendChild(empty); }
+  }
+  function addTimeBreak() {
+    const start = relativeTime($('time-break-start').valueAsNumber), end = relativeTime($('time-break-end').valueAsNumber);
+    if (transact(() => { project.timeBreaks.push({start,end}); },'time-break-error')) {
+      $('time-break-start').value = ''; $('time-break-end').value = '';
+    }
+  }
+  $('add-time-break').addEventListener('click',addTimeBreak);
+  ['time-break-start','time-break-end'].forEach(id => {
+    $(id).addEventListener('input',() => { $('time-break-error').textContent = ''; });
+    $(id).addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); addTimeBreak(); } });
+  });
+  $('time-break-list').addEventListener('click',event => {
+    const button = event.target.closest('[data-remove-time-break]'); if (!button) return;
+    transact(() => { project.timeBreaks.splice(+button.dataset.removeTimeBreak,1); },'time-break-error');
+  });
   ['time-start','time-end'].forEach(id => {
     $(id).addEventListener('input',() => { $('time-range-error').textContent = ''; });
     $(id).addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); applyTimeRange(); } });
@@ -429,7 +482,7 @@
   function tab(name) { ['signal','canvas'].forEach((item) => { $(item + '-tab').classList.toggle('active',item === name); $(item + '-tab').setAttribute('aria-selected',String(item === name)); $(item + '-panel').hidden = item !== name; }); }
   $('signal-tab').addEventListener('click',() => tab('signal')); $('canvas-tab').addEventListener('click',() => tab('canvas'));
   function zoom(value) { ppu = clamp(value,.5,192); render(); }
-  function fit() { const l = layout(); zoom(($('canvas-scroll').clientWidth - l.labelWidth - 26) / project.duration); }
+  function fit() { const l = layout(); zoom(($('canvas-scroll').clientWidth - (l.width - l.visibleDuration * l.ppu)) / l.visibleDuration); }
   $('zoom-in').addEventListener('click',() => zoom(ppu * 1.25)); $('zoom-out').addEventListener('click',() => zoom(ppu / 1.25)); $('zoom-fit').addEventListener('click',fit);
   $('undo-btn').addEventListener('click',undo); $('redo-btn').addEventListener('click',redo);
   $('file-btn').addEventListener('click',() => { $('file-menu').hidden = !$('file-menu').hidden; $('file-btn').setAttribute('aria-expanded',String(!$('file-menu').hidden)); });
@@ -455,28 +508,55 @@
     catch (error) { toast('无法打开项目：' + error.message,true); }
     finally { $('file-input').value = ''; }
   });
-  const exportPpu = () => Math.min(48,12000 / project.duration);
-  function exportScale() {
-    if ($('export-scale').value !== 'auto') return +$('export-scale').value;
-    const {width,height} = C.getLayout(project,{pxPerUnit:exportPpu()});
-    return Math.min(2,16000 / width,16000 / height,Math.sqrt(24000000 / (width * height)));
+  let customExportWidth = false, exportBusy = false;
+  function defaultExportLayout() { const l = layout(); return C.getLayout(project,{pxPerUnit:Math.min(48,(12000 - l.gaps.length * l.gapWidth) / l.visibleDuration)}); }
+  function resetExportWidth() {
+    const l = defaultExportLayout(); customExportWidth = false;
+    $('export-width').value = Math.max(l.minWidth,Math.ceil(l.width));
   }
-  function exportSVG() { return C.renderSVG(project,{pxPerUnit:exportPpu(),interactive:false,background:$('export-background').value,idPrefix:'export'}); }
+  function exportSettings() {
+    const width = Number($('export-width').value), minWidth = C.getLayout(project).minWidth;
+    if (!Number.isInteger(width) || width < minWidth || width > 16000) throw new Error('图形宽度须为 ' + minWidth + '–16000 px 的整数。');
+    const l = C.getLayout(project,{width});
+    const scale = $('export-scale').value === 'auto' ? Math.min(2,16000 / l.width,16000 / l.height,Math.sqrt(24000000 / (l.width * l.height))) : +$('export-scale').value;
+    return {width,layout:l,scale};
+  }
+  function exportSVG(width) { return C.renderSVG(project,{width,interactive:false,background:$('export-background').value,idPrefix:'export'}); }
+  function pngDimensions(width,height,scale) {
+    width = Math.ceil(width * scale); height = Math.ceil(height * scale);
+    if (width > 32767 || height > 32767 || width * height > 32000000) throw new Error('图片尺寸过大，请减小图形宽度、选择「自适应 · 大图」，或导出 SVG。');
+    return {width,height};
+  }
   function exportFormat() { return document.querySelector('[name="export-format"]:checked').value; }
   function exportPreview() {
-    $('export-preview').innerHTML = exportSVG(); const svg = $('export-preview').querySelector('svg'), isPNG = exportFormat() === 'png';
-    const scale = isPNG ? exportScale() : 1; $('export-scale').disabled = !isPNG;
-    const isPPT = exportFormat() === 'pptx'; $('export-background').disabled = isPPT;
-    $('export-size').textContent = isPPT ? '原生线条、路径与文本框' : Math.ceil(svg.viewBox.baseVal.width * scale) + ' × ' + Math.ceil(svg.viewBox.baseVal.height * scale) + (isPNG ? ' px' : ' · 矢量');
-    $('export-format-note').textContent = isPPT ? '在 PPT 中可改线宽、颜色、字体' : isPNG ? '保留透明度' : '按信号分组的独立路径';
-    $('export-submit').innerHTML = icon('download') + '下载 ' + exportFormat().toUpperCase(); $('export-error').textContent = '';
+    const format = exportFormat(), isPNG = format === 'png', isPPT = format === 'pptx';
+    $('export-scale').disabled = !isPNG; $('export-background').disabled = isPPT;
+    $('export-submit').innerHTML = icon('download') + '下载 ' + format.toUpperCase();
+    $('export-format-note').textContent = isPPT ? '在 PPT 中可改线宽、颜色、字体' : isPNG ? '实际像素 = 图形宽度 × 倍率' : '按信号分组的独立路径';
+    $('export-width').removeAttribute('aria-invalid');
+    try {
+      const settings = exportSettings();
+      const size = isPNG ? pngDimensions(settings.layout.width,settings.layout.height,settings.scale) : settings.layout;
+      $('export-preview').innerHTML = exportSVG(settings.width);
+      $('export-size').textContent = size.width + ' × ' + size.height + (isPNG ? ' px' : isPPT ? ' · 图形排布' : ' px · 矢量');
+      $('export-error').textContent = ''; $('export-submit').disabled = exportBusy;
+    } catch (error) {
+      $('export-preview').replaceChildren(); $('export-size').textContent = '';
+      $('export-error').textContent = error.message; $('export-submit').disabled = true;
+      $('export-width').setAttribute('aria-invalid','true');
+    }
   }
-  $('export-btn').addEventListener('click',() => { exportPreview(); openDialog('export-dialog'); });
+  $('export-btn').addEventListener('click',() => {
+    $('export-width').min = C.getLayout(project).minWidth;
+    if (!customExportWidth) resetExportWidth();
+    exportPreview(); openDialog('export-dialog');
+  });
+  $('export-width').addEventListener('input',() => { customExportWidth = true; exportPreview(); });
+  $('export-width-reset').addEventListener('click',() => { resetExportWidth(); exportPreview(); });
   all('[name="export-format"]').forEach(el => el.addEventListener('change',exportPreview)); $('export-background').addEventListener('change',exportPreview); $('export-scale').addEventListener('change',exportPreview);
   async function pngBlob(svg,scale) {
     const doc = new DOMParser().parseFromString(svg,'image/svg+xml'); const source = doc.documentElement;
-    const width = Math.ceil(+source.getAttribute('width') * scale), height = Math.ceil(+source.getAttribute('height') * scale);
-    if (width > 32767 || height > 32767 || width * height > 32000000) throw new Error('图片尺寸过大，请选择「自适应 · 大图」，或导出 SVG 矢量图。');
+    const {width,height} = pngDimensions(+source.getAttribute('width'),+source.getAttribute('height'),scale);
     const url = URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
     try {
       const img = new Image(); await new Promise((resolve,reject) => { img.onload = resolve; img.onerror = () => reject(new Error('波形图片渲染失败，请尝试 SVG 导出')); img.src = url; });
@@ -488,18 +568,19 @@
     } finally { URL.revokeObjectURL(url); }
   }
   $('export-form').addEventListener('submit',async (event) => {
-    event.preventDefault(); $('export-submit').disabled = true; $('export-error').textContent = '';
+    event.preventDefault(); if (exportBusy) return;
+    exportBusy = true; $('export-submit').disabled = true; $('export-error').textContent = '';
     try {
-      const format = exportFormat(), svg = exportSVG();
+      const format = exportFormat(), settings = exportSettings(), svg = exportSVG(settings.width);
       let blob;
       if (format === 'pptx') {
-        const data = await window.WavePptx.exportPptx(project,{pxPerUnit:exportPpu()});
+        const data = await window.WavePptx.exportPptx(project,{width:settings.width});
         blob = new Blob([data],{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
-      } else if (format === 'png') blob = await pngBlob(svg,exportScale());
+      } else if (format === 'png') blob = await pngBlob(svg,settings.scale);
       else blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svg],{type:'image/svg+xml;charset=utf-8'});
       download(blob,filename(format)); $('export-dialog').close(); toast('已导出 ' + format.toUpperCase());
     } catch (error) { $('export-error').textContent = error.message; }
-    finally { $('export-submit').disabled = false; }
+    finally { exportBusy = false; $('export-submit').disabled = $('export-width').getAttribute('aria-invalid') === 'true'; }
   });
   document.addEventListener('keydown',(event) => {
     if (gesture) {
