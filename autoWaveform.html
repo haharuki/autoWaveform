@@ -791,12 +791,39 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           }
         }
       }
+      const labelBoxes = tickLabels.map((item) => {
+        const baseline = axisY + 8 + tickFont + item.lane * (tickFont + 4);
+        const left = item.left - 2, right = item.left + item.textWidth + 2;
+        const top = baseline - tickFont * 0.95 - 2, bottom = baseline + tickFont * 0.3 + 2;
+        return [[left, top], [right, top], [right, bottom], [left, bottom]];
+      });
+      function visibleGuidePieces(start, end) {
+        const dx = end[0] - start[0], dy = end[1] - start[1], lengthSquared = dx * dx + dy * dy;
+        let ranges = [[0, 1]];
+        for (const box of labelBoxes) {
+          const overlap = clipSegmentToPolygon(start, end, box);
+          if (!overlap) continue;
+          const [from, to] = overlap.map((point) => ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared);
+          ranges = ranges.flatMap(([a, b]) => {
+            if (to <= a || from >= b) return [[a, b]];
+            const remainder = [];
+            if (from > a + EPS) remainder.push([a, from]);
+            if (to < b - EPS) remainder.push([to, b]);
+            return remainder;
+          });
+        }
+        return ranges.map((range) => range.map((t) => [start[0] + t * dx, start[1] + t * dy]));
+      }
       tickLabels.forEach((item, i) => {
         const { t, value, anchor, textWidth, inset, left, lane } = item;
         const yy = axisY + 8 + tickFont + lane * (tickFont + 4);
         line('axis-tick-' + i, [[mappedX(t), axisY], [mappedX(t), axisY + 5]], '#111111', 1);
-        if (l.gaps.length && Math.abs(left - item.preferred) > 2) line('axis-guide-' + i,
-          [[mappedX(t), axisY + 5], [left + textWidth / 2, yy - tickFont * 0.85 - 1]], '#888888', 0.55, null, null, 'axis-label-guide');
+        if (l.gaps.length && Math.abs(left - item.preferred) > 2) {
+          // Cut geometry around every label, including labels drawn later.
+          // Native paths stay editable, and transparent exports need no masks.
+          visibleGuidePieces([mappedX(t), axisY + 5], [left + textWidth / 2, yy - tickFont * 0.85 - 1]).forEach((points, part) =>
+            line('axis-guide-' + i + (part ? '-part-' + part : ''), points, '#888888', 0.55, null, null, 'axis-label-guide'));
+        }
         label('axis-value-' + i, left + inset, yy, value, { fontSize: tickFont, anchor });
       });
       l.gaps.forEach((gap, index) => {
