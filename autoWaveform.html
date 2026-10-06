@@ -51,6 +51,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
 
 .time-break-section{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}#time-break-list{margin-top:10px}.time-break-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11px;color:#68707a}.time-break-item>span{min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.time-break-item [data-remove-time-break]{flex-shrink:0;min-height:28px;padding:5px 8px;border:1px solid #dce1eb;border-radius:4px;background:#fff;color:#8c4b56;font-size:11px;line-height:1.4}.time-break-item [data-remove-time-break]:hover{background:#fbf4f5}.time-break-empty{margin:0;padding:9px 0;font-size:11px;color:#8c949e;line-height:1.7}
 .export-width-control{display:flex;gap:12px;align-items:flex-end;margin-bottom:10px}.export-width-control .field{flex:1;margin-bottom:0}.export-width-control .button{height:34px;flex-shrink:0}
+.grid-settings-section{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.grid-settings-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}.grid-settings-heading .section-label{margin-bottom:0}.grid-visibility{display:flex;align-items:center;gap:5px;font-size:11px;color:#69717c}.grid-visibility input{width:13px;height:13px;margin:0;accent-color:var(--primary)}.grid-settings-section input[type=color]{height:34px;padding:3px;cursor:pointer}
+.bus-style-section{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}.bus-style-colors input[type=color]{height:34px;padding:3px;width:100%}.style-check{display:flex;align-items:center;gap:5px;font-size:11px;white-space:nowrap}.style-check input{margin:0;accent-color:var(--primary)}.bus-style-type{align-items:center}.bus-style-type>.appearance-checks{flex:1;margin:12px 0 0;gap:10px;justify-content:flex-end}.bus-style-type>.field{max-width:100px}.bus-style-actions{display:flex;gap:8px}.bus-style-actions .button{font-size:11px;padding:7px 9px}.bus-style-actions .button:first-child{flex:1}
 </style>
 </head>
 <body>
@@ -82,7 +84,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
             <div class="field">线条颜色<div id="palette" class="palette"><button data-color="#111111" style="--swatch:#111111" aria-label="黑色"></button><button data-color="#cc2222" style="--swatch:#cc2222" aria-label="红色"></button><button data-color="#198b84" style="--swatch:#198b84" aria-label="青绿色"></button><button data-color="#4f70c3" style="--swatch:#4f70c3" aria-label="蓝色"></button><button data-color="#8871b6" style="--swatch:#8871b6" aria-label="紫色"></button><button data-color="#cb8741" style="--swatch:#cb8741" aria-label="橙色"></button></div><div class="color-custom"><input id="signal-color" type="color" aria-label="自定义线条颜色"><input id="color-hex" aria-label="颜色十六进制值" maxlength="7" spellcheck="false"></div></div>
             <label class="field">线条粗细<div class="range-field"><input id="signal-width" type="range" min="0.5" max="5" step="0.25"><output id="width-output">2 px</output></div></label>
             <div id="digital-fields" class="property-section"><div class="section-label">边沿过渡<span class="unit-label">ns</span></div><div class="field-row"><label class="field"><span><span data-icon="rise"></span>上升时间</span><input id="signal-rise" type="number" min="0" max="1000" step="0.05"></label><label class="field"><span><span data-icon="fall"></span>下降时间</span><input id="signal-fall" type="number" min="0" max="1000" step="0.05"></label></div><p class="field-note">设为 0 绘制垂直边沿；非零时显示倾斜过渡。</p><button id="clock-btn" class="button full"><span data-icon="clock"></span>生成时钟波形</button></div>
-            <div class="property-section"><div class="section-label">选中区间<span id="interval-range" class="muted"></span></div><div id="interval-content"><label class="field">区间值<input id="interval-value" type="text" maxlength="80" spellcheck="false"></label><div class="field-row"><label class="field">开始时刻<input id="interval-start" type="number" min="0" step="any"></label><label class="field">结束时刻<input id="interval-end" type="number" min="0" step="any"></label></div><button id="apply-interval" class="button full">修改区间值</button><div class="interval-style"><label class="field">区间颜色<input id="interval-color" type="color" value="#cc2222" aria-label="区间颜色"></label><button id="apply-interval-color" class="button">着色</button><button id="reset-interval-color" class="button" title="恢复使用信号颜色">重置</button></div></div><p class="field-note" id="interval-note">填写起止时刻，可只对部分波形着色。</p></div>
+            <div class="property-section"><div class="section-label">选中区间<span id="interval-range" class="muted"></span></div><div id="interval-content"><label id="interval-value-label" class="field">区间值<input id="interval-value" type="text" maxlength="80" spellcheck="false"></label><div class="field-row"><label class="field">开始时刻<input id="interval-start" type="number" min="0" step="any"></label><label class="field">结束时刻<input id="interval-end" type="number" min="0" step="any"></label></div><button id="apply-interval" class="button full">修改区间值</button><div class="interval-style"><label class="field">区间线条颜色<input id="interval-color" type="color" value="#cc2222" aria-label="区间颜色"></label><button id="apply-interval-color" class="button">着色</button><button id="reset-interval-color" class="button" title="恢复使用信号颜色">重置</button></div></div><div id="bus-style-section" class="bus-style-section" hidden><div id="bus-style-fields"></div><div class="bus-style-actions"><button id="apply-bus-style" type="button" class="button">应用文字样式与填充</button><button id="reset-bus-style" type="button" class="button">重置</button></div></div><p class="field-note" id="interval-note">填写起止时刻，可只对部分波形着色。</p></div>
             <div class="property-section break-section"><div class="section-label">断线标记<span class="unit-label">ns</span></div><label class="field">位置<select id="break-list" aria-label="选择断线"><option value="-1">新增位置</option></select></label><label class="field">时刻<input id="break-time" type="number" step="any"></label><div class="break-actions"><button id="apply-break" class="button">添加断线</button><button id="remove-break" class="button" disabled>删除断线</button></div><button id="sync-break-all" class="button full" disabled>将此断线对齐到全部信号</button><p class="field-note">可拖动标记。此处仅添加视觉断线；跳过时间请用「画布设置 → 时间轴省略」。</p></div>
             <div class="signal-actions"><button id="move-up" class="icon-button" title="信号上移" aria-label="信号上移" data-icon="up"></button><button id="move-down" class="icon-button" title="信号下移" aria-label="信号下移" data-icon="down"></button><button id="duplicate-btn" class="icon-button" title="复制信号" aria-label="复制信号" data-icon="copy"></button><button id="delete-btn" class="icon-button danger" title="删除信号（可撤销）" aria-label="删除信号" data-icon="trash"></button></div>
           </div>
@@ -95,6 +97,11 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           <label class="field">名称列宽<input id="label-width" type="number" min="80" max="300" step="4"></label>
           <label class="field">Z 高阻态<select id="z-style"><option value="hatch">斜线填充</option><option value="line">中线虚线</option></select></label><label class="field">X 未知态<select id="x-style"><option value="crosshatch">交叉斜线填充</option><option value="cross">交叉虚线</option></select></label>
           <button id="monochrome-btn" class="button full">全部改为黑色细线</button><div class="property-section"><div class="section-label">时间范围</div></div><div class="field-row"><label class="field">起始时刻<input id="time-start" type="number" min="-1000000" max="1000000" step="any" value="0"></label><label class="field">结束时刻<input id="time-end" type="number" min="-1000000" max="1000000" step="any" value="16"></label></div><button id="apply-time-range" class="button full">应用时间区间</button><p id="time-range-error" class="form-error" role="alert"></p><p id="time-range-summary" class="field-note" style="margin-top:8px">跨度 16 ns</p><label class="field">时间单位<select id="time-unit"><option>ps</option><option selected>ns</option><option>μs</option><option>ms</option><option>s</option><option>cycle</option></select></label><p class="field-note">更改起始时刻会整体平移波形；缩短跨度会裁去右侧超出部分，可撤销恢复。</p>
+          <section class="grid-settings-section" aria-labelledby="grid-settings-heading">
+            <div class="grid-settings-heading"><div id="grid-settings-heading" class="section-label">网格</div><label class="grid-visibility"><input id="grid-visible" type="checkbox">显示网格</label></div>
+            <label class="field">线型<select id="grid-style"><option value="dot">点线</option><option value="dash">虚线</option><option value="solid">实线</option><option value="dashdot">点划线</option></select></label>
+            <div class="field-row"><label class="field">颜色<input id="grid-color" type="color" value="#dedede"></label><label class="field">粗细（px）<input id="grid-width" type="number" min="0.25" max="3" step="0.05" value="0.65"></label></div>
+          </section>
           <section class="time-break-section" aria-labelledby="time-break-heading">
             <div id="time-break-heading" class="section-label">时间轴省略</div>
             <div class="field-row"><label class="field">开始时刻<input id="time-break-start" type="number" step="any"></label><label class="field">结束时刻<input id="time-break-end" type="number" step="any"></label></div>
@@ -109,7 +116,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     </div>
   </main>
   <dialog id="add-dialog"><form id="add-form"><div class="dialog-head"><h2>添加信号</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">选择信号类型，开始绘制。</p><div class="type-options"><label><input type="radio" name="signal-type" value="digital" checked><span><span data-icon="wave"></span><strong>数字信号</strong><small>高低电平、X / Z</small></span></label><label><input type="radio" name="signal-type" value="bus"><span><span data-icon="bus"></span><strong>总线信号</strong><small>数值或文字标注</small></span></label></div><label class="field">信号名称<input id="new-name" required maxlength="64" value="signal" spellcheck="false"></label><label class="field">初始值<input id="new-value" maxlength="80" value="0" required spellcheck="false"></label><p id="add-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">添加信号</button></div></form></dialog>
-  <dialog id="bus-dialog"><form id="bus-form"><div class="dialog-head"><h2>编辑总线区间</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><label class="field">区间值<input id="bus-value" maxlength="80" required spellcheck="false" placeholder="例如 0xA5、DATA、Z"></label><div class="field-row"><label class="field">开始时刻<input id="bus-start" type="number" min="0" step="any" required></label><label class="field">结束时刻<input id="bus-end" type="number" min="0" step="any" required></label></div><p id="bus-range-note" class="field-note">只修改指定区间，其他区间保持原值。</p><p id="bus-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">应用修改</button></div></form></dialog>
+  <dialog id="bus-dialog"><form id="bus-form"><div class="dialog-head"><h2>编辑总线区间</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><label class="field">区间文字<input id="bus-value" maxlength="80" required spellcheck="false" placeholder="例如 0xA5、DATA、Z"></label><div class="field-row"><label class="field">开始时刻<input id="bus-start" type="number" min="0" step="any" required></label><label class="field">结束时刻<input id="bus-end" type="number" min="0" step="any" required></label></div><p id="bus-range-note" class="field-note">只修改指定区间，其他区间保持原值。</p><div id="bus-dialog-style-fields" class="bus-style-section"></div><p id="bus-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">应用修改</button></div></form></dialog>
   <dialog id="clock-dialog"><form id="clock-form"><div class="dialog-head"><h2>生成时钟波形</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">用规则时钟填充当前信号，可随时撤销。</p><div class="field-row"><label class="field">周期<input id="clock-period" type="number" min="0.01" step="any" required value="2"></label><label class="field">高电平占空比（%）<input id="clock-duty" type="number" min="1" max="99" required value="50"></label></div><div class="field-row"><label class="field">相对起点的相位延迟<input id="clock-phase" type="number" min="0" step="any" required value="0"></label><label class="field">初始电平<select id="clock-initial"><option value="0">0 · 低电平</option><option value="1">1 · 高电平</option></select></label></div><p id="clock-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" class="button primary">生成时钟</button></div></form></dialog>
   <dialog id="export-dialog" class="export-dialog"><form id="export-form"><div class="dialog-head"><h2>导出</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><p class="dialog-description">仅导出波形和必要标注。</p><div class="type-options"><label><input type="radio" name="export-format" value="svg" checked><span><strong>SVG</strong><small>独立矢量路径</small></span></label><label><input type="radio" name="export-format" value="png"><span><strong>PNG</strong><small>透明或白色背景</small></span></label><label><input type="radio" name="export-format" value="pptx"><span><strong>PowerPoint</strong><small>可编辑线条与文字</small></span></label></div><div class="export-preview" id="export-preview" aria-label="导出预览"></div><div class="export-width-control"><label class="field">图形宽度（px）<input id="export-width" type="number" min="220" max="16000" step="1" required aria-describedby="export-width-note"></label><button id="export-width-reset" class="button" type="button">恢复默认</button></div><p id="export-width-note" class="field-note">宽度含信号名称列；时间范围、字号、线宽与行距保持不变。</p><div class="field-row"><label class="field">背景<select id="export-background"><option value="white">白色</option><option value="transparent">透明</option></select></label><label class="field">PNG 清晰度<select id="export-scale"><option value="1">1× · 标准</option><option value="2" selected>2× · 高清</option><option value="3">3× · 超清</option><option value="auto">自适应 · 大图</option></select></label></div><div class="export-info"><span id="export-size"></span><span id="export-format-note">独立矢量路径</span></div><p id="export-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button close-dialog">取消</button><button type="submit" id="export-submit" class="button primary"><span data-icon="download"></span>下载 SVG</button></div></form></dialog>
   <dialog id="help-dialog" class="help-dialog"><div class="dialog-head"><h2>从第一笔到一幅时序图</h2><button class="icon-button close-dialog" type="button" aria-label="关闭" data-icon="close"></button></div><div class="help-steps"><div><span>1</span><section><h3>添加或选择信号</h3><p>点击「添加信号」创建数字信号或总线；点击画布左侧名称选择已有信号。</p></section></div><div><span>2</span><section><h3>用鼠标画波形</h3><p>画笔在上半格画 1、下半格画 0，也可以选定 1 / 0 / X / Z 连续涂画。总线上拖动选定时间范围，在弹窗中输入区间值；双击已有区间编辑。</p></section></div><div><span>3</span><section><h3>调整时序与样式</h3><p>直接拖动边沿调整切换时刻，按住 Shift 吸附到网格。右侧设置字体、线宽和过渡时间；填写区间起止时刻后可单独着色。</p></section></div><div><span>4</span><section><h3>保存与导出</h3><p>「项目」可保存 JSON 或包含当前图的单文件 HTML。「导出」支持 SVG、PNG 和原生可编辑 PPTX。浏览器会尝试自动保存；重要项目建议主动保存文件。</p></section></div></div><div class="shortcuts"><span><kbd>V</kbd>选择</span><span><kbd>D</kbd>画笔</span><span><kbd>Ctrl Z</kbd>撤销</span><span><kbd>Ctrl S</kbd>保存项目</span></div></dialog>
@@ -193,16 +200,37 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       boldLabels: boolean(raw.boldLabels, false, '粗体标签'),
       showAxis: boolean(raw.showAxis, true, '显示时间轴'),
       showGrid: boolean(raw.showGrid, false, '显示网格'),
+      gridStyle: choice(raw.gridStyle, 'dot', ['dot', 'dash', 'solid', 'dashdot'], '网格线样式'),
+      gridColor: colorFor(raw.gridColor, '#dedede'),
+      gridWidth: number(raw.gridWidth, 0.65, 0.25, 3, '网格线宽'),
       zStyle: choice(raw.zStyle, 'hatch', ['hatch', 'line'], 'Z 状态样式'),
       xStyle: choice(raw.xStyle, 'crosshatch', ['crosshatch', 'cross'], 'X 状态样式'),
       rowHeight: number(raw.rowHeight, ROW_HEIGHT, 48, 120, '行高'),
       labelWidth: number(raw.labelWidth, LABEL_WIDTH, 80, 300, '名称列宽度')
     };
   }
-  const equalState = (a, b) => a.value === b.value && a.color === b.color;
+  const BUS_STYLE_KEYS = ['fill', 'textColor', 'fontFamily', 'fontSize', 'bold', 'italic'];
+  function normalizeBusStyle(raw) {
+    if (raw === undefined || raw === null) return undefined;
+    object(raw, '总线区间样式');
+    const result = {};
+    for (const key of BUS_STYLE_KEYS) {
+      const value = raw[key];
+      if (value === undefined || value === null) continue;
+      if (key === 'fill' || key === 'textColor') result[key] = colorFor(value);
+      else if (key === 'fontFamily') result[key] = fontFor(value, null);
+      else if (key === 'fontSize') result[key] = number(value, undefined, 8, 36, '总线文字大小');
+      else result[key] = boolean(value, undefined, '总线文字样式');
+      if (result[key] === null) delete result[key];
+    }
+    return Object.keys(result).length ? result : undefined;
+  }
+  const equalBusStyle = (a, b) => BUS_STYLE_KEYS.every((key) => a?.[key] === b?.[key]);
+  const equalState = (a, b) => a.value === b.value && a.color === b.color && equalBusStyle(a.busStyle, b.busStyle);
   function copyEvent(event, t = event.t) {
     const copy = { t: round(t), value: event.value };
     if (event.color) copy.color = event.color;
+    if (event.busStyle) copy.busStyle = { ...event.busStyle };
     return copy;
   }
   function canonical(events) {
@@ -235,6 +263,11 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       previous = event.t;
       const normalized = { t: event.t, value: valueFor(type, event.value) };
       if (event.color !== undefined && event.color !== null) normalized.color = colorFor(event.color);
+      const busStyle = normalizeBusStyle(event.busStyle);
+      if (busStyle) {
+        if (type !== 'bus') fail('仅总线信号支持区间文字和背景样式');
+        normalized.busStyle = busStyle;
+      }
       return normalized;
     }).filter((event) => event.t < duration);
     const breakSource = raw.breaks === undefined ? [] : raw.breaks;
@@ -349,6 +382,21 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     const checked = color === null ? null : colorFor(color);
     return editRange(signal, start, end, duration, (event) => { if (checked === null) delete event.color; else event.color = checked; });
   }
+  function setRangeStyle(signal, start, end, patch, duration) {
+    if (signal.type !== 'bus') fail('仅总线信号支持区间文字和背景样式');
+    object(patch, '总线区间样式');
+    if (Object.keys(patch).some((key) => !BUS_STYLE_KEYS.includes(key))) fail('不支持的总线区间样式属性');
+    const checked = normalizeBusStyle(patch) || {};
+    return editRange(signal, start, end, duration, (event) => {
+      const next = { ...event.busStyle };
+      for (const key of BUS_STYLE_KEYS) {
+        if (patch[key] === null) delete next[key];
+        else if (own(checked, key)) next[key] = checked[key];
+      }
+      if (Object.keys(next).length) event.busStyle = next;
+      else delete event.busStyle;
+    });
+  }
   function moveEvent(signal, index, t, duration) {
     if (!Number.isInteger(index) || index <= 0 || index >= signal.events.length || !finite(t)) return signal;
     const left = signal.events[index - 1].t;
@@ -457,11 +505,12 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     }
     return result ? result + '…' : '';
   }
-  function signalRuns(signal, duration) {
+  function signalRuns(signal, duration, includeBusStyle = false) {
     const runs = [];
     for (let i = 0; i < signal.events.length;) {
       let j = i + 1;
-      while (j < signal.events.length && signal.events[j].value === signal.events[i].value) j++;
+      while (j < signal.events.length && signal.events[j].value === signal.events[i].value &&
+        (!includeBusStyle || equalBusStyle(signal.events[j].busStyle, signal.events[i].busStyle))) j++;
       const run = { first: i, last: j - 1, start: signal.events[i].t, end: signal.events[j] ? signal.events[j].t : duration,
         value: signal.events[i].value, previous: i ? signal.events[i - 1].value : signal.events[i].value };
       for (let k = i; k < j; k++) runs[k] = run;
@@ -503,6 +552,24 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     }
     return [[a[0] + dx * from, a[1] + dy * from], [a[0] + dx * to, a[1] + dy * to]];
   }
+  function clipSegmentOutsidePolygons(start, end, polygons) {
+    const dx = end[0] - start[0], dy = end[1] - start[1], lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared < EPS * EPS) return [];
+    let ranges = [[0, 1]];
+    for (const polygon of polygons) {
+      const overlap = clipSegmentToPolygon(start, end, polygon);
+      if (!overlap) continue;
+      const [from, to] = overlap.map((point) => ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared);
+      ranges = ranges.flatMap(([a, b]) => {
+        if (to <= a || from >= b) return [[a, b]];
+        const remainder = [];
+        if (from > a + EPS) remainder.push([a, from]);
+        if (to < b - EPS) remainder.push([to, b]);
+        return remainder;
+      });
+    }
+    return ranges.map((range) => range.map((t) => [start[0] + t * dx, start[1] + t * dy]));
+  }
   function mergedGaps(centers) {
     const gaps = [];
     for (const center of centers) {
@@ -511,6 +578,34 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       else gaps.push([left, right]);
     }
     return gaps;
+  }
+  function clipPolygonX(points, left, right) {
+    let result = points;
+    for (const [edge, direction] of [[left, 1], [right, -1]]) {
+      const clipped = [];
+      for (let i = 0; i < result.length; i++) {
+        const previous = result[(i + result.length - 1) % result.length], current = result[i];
+        const previousInside = direction * (previous[0] - edge) >= 0, currentInside = direction * (current[0] - edge) >= 0;
+        if (previousInside !== currentInside) {
+          const ratio = (edge - previous[0]) / (current[0] - previous[0]);
+          clipped.push([edge, previous[1] + (current[1] - previous[1]) * ratio]);
+        }
+        if (currentInside) clipped.push(current);
+      }
+      result = clipped;
+    }
+    return result.map((point) => point.map(round)).filter((point, i, all) => !i || point[0] !== all[i - 1][0] || point[1] !== all[i - 1][1]);
+  }
+  function visibleWindows(start, end, gaps) {
+    const result = [];
+    let cursor = start;
+    for (const [left, right] of gaps) {
+      if (right <= cursor || left >= end) continue;
+      if (left > cursor) result.push([cursor, Math.min(left, end)]);
+      cursor = Math.max(cursor, Math.min(end, right));
+    }
+    if (cursor < end) result.push([cursor, end]);
+    return result;
   }
   function mergeIntervals(intervals) {
     const result = [];
@@ -589,6 +684,11 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       if (role) element.role = role;
       elements.push(element);
     }
+    function polygon(id, points, fill, signalId) {
+      if (points.length < 3) return;
+      line(id, points, 'none', 0, signalId, null, 'bus-fill');
+      Object.assign(elements[elements.length - 1], { closed: true, fill });
+    }
     function label(id, xx, y, value, settings) {
       const s = settings || {};
       elements.push({ kind: 'text', id: uniqueId(id), x: round(xx), y: round(y), text: value, fontFamily: s.fontFamily || a.fontFamily, fontSize: s.fontSize || a.fontSize,
@@ -612,7 +712,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       ticks = [...new Set([...required, ...ticks.filter((t) => required.every((edge) => Math.abs(mappedX(t) - mappedX(edge)) >= metrics.spacing))])].sort((left, right) => left - right);
     }
     const bottom = HEADER_HEIGHT + p.signals.length * rowHeight;
-    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[mappedX(t), HEADER_HEIGHT], [mappedX(t), bottom]], '#dedede', 0.65, null, 'dot'));
+    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[mappedX(t), HEADER_HEIGHT], [mappedX(t), bottom]], a.gridColor, a.gridWidth, null, a.gridStyle === 'solid' ? null : a.gridStyle));
     p.signals.forEach((s, row) => {
       const signalElementStart = elements.length;
       const top = HEADER_HEIGHT + row * rowHeight, mid = top + rowHeight / 2;
@@ -623,6 +723,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       label(s.id + '-label', labelWidth - 18, mid + a.fontSize * 0.34, boundedText(s.name, labelWidth - 28, a.fontSize),
         { signalId: s.id, role: 'label', fontFamily, italic: a.italicLabels, bold: a.boldLabels, anchor: 'end' });
       const runs = signalRuns(s, p.duration);
+      const busRuns = s.type === 'bus' ? signalRuns(s, p.duration, true) : null;
       s.events.forEach((event, i) => {
         const run = runs[i], startT = event.t, endT = s.events[i + 1] ? s.events[i + 1].t : p.duration;
         const start = x(startT), end = x(endT), value = event.value, color = event.color || s.color;
@@ -642,6 +743,21 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           [runEnd, outlet ? mid : lo], [runEnd - outlet, lo], [runStart + inlet, lo], [runStart, inlet ? mid : lo]];
         const intervalRegion = [[start, hi], [end, hi], [end, lo], [start, lo]];
         const patterned = (state === 'Z' && a.zStyle === 'hatch') || (state === 'X' && a.xStyle === 'crosshatch');
+        const busRun = busRuns?.[i], busStyle = event.busStyle || {};
+        let busText = null;
+        if (busRun && ((!patterned && state !== 'X') || ['textColor', 'fontFamily', 'fontSize', 'bold', 'italic'].some((key) => own(busStyle, key)))) {
+          const window = largestVisibleWindow(x(busRun.start), x(busRun.end), gaps), center = (window[0] + window[1]) / 2;
+          const fontSize = busStyle.fontSize || a.fontSize * 0.9;
+          const visible = boundedText(value, window[1] - window[0] - 20, fontSize);
+          if (visible && window[1] - window[0] > 28) {
+            const centerColor = stateAt(s, (center - labelWidth) / ppu).color || s.color;
+            const estimatedWidth = Array.from(visible).reduce((sum, c) => sum + fontSize * (c.codePointAt(0) > 255 ? 1 : /[MW@%]/.test(c) ? 0.9 : /[il.,' ]/.test(c) ? 0.3 : 0.6), 0);
+            const baseline = mid + fontSize * 0.34, left = center - estimatedWidth / 2 - 2, right = center + estimatedWidth / 2 + 2;
+            busText = { center, baseline, visible, fontSize, color: busStyle.textColor || centerColor,
+              box: [[left, baseline - fontSize * 0.95 - 2], [right, baseline - fontSize * 0.95 - 2], [right, baseline + fontSize * 0.3 + 2], [left, baseline + fontSize * 0.3 + 2]] };
+          }
+        }
+        if (s.type === 'bus' && busStyle.fill) polygon(id + '-fill', clipPolygonX(region, start, end), busStyle.fill, s.id);
         if (patterned) {
           const borderWidth = Math.max(0.5, s.width * 0.7), hatchWidth = Math.max(0.45, Math.min(1.2, s.width * 0.5));
           line(id + '-upper', upper, color, borderWidth, s.id, null, 'pattern-boundary');
@@ -657,7 +773,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
               let segment = clipSegmentToPolygon([anchor, direction > 0 ? lo : hi], [anchor + lo - hi, direction > 0 ? hi : lo], region);
               if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], intervalRegion);
               if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], visibleRegion);
-              if (segment) line(id + (direction > 0 ? '-hatch-' : '-crosshatch-') + n, segment, color, hatchWidth, s.id, null, 'hatch');
+              if (segment) clipSegmentOutsidePolygons(segment[0], segment[1], busText ? [busText.box] : []).forEach((piece, part) =>
+                line(id + (direction > 0 ? '-hatch-' : '-crosshatch-') + n + (part ? '-part-' + part : ''), piece, color, hatchWidth, s.id, null, 'hatch'));
             }
           }
           }
@@ -666,14 +783,14 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           const yUp = (xx) => lo - (lo - hi) * (xx - runStart) / runSpan;
           for (const [suffix, points] of [['x-down', [[start, yDown(start)], [end, yDown(end)]]], ['x-up', [[start, yUp(start)], [end, yUp(end)]]]]) {
             const clipped = clipSegmentToPolygon(points[0], points[1], region);
-            if (clipped) trace(suffix, clipped, 'dash');
+            if (clipped) clipSegmentOutsidePolygons(clipped[0], clipped[1], busText ? [busText.box] : []).forEach((piece, part) => trace(suffix + (part ? '-part-' + part : ''), piece, 'dash'));
           }
           trace('upper', upper, 'dash'); trace('lower', lower, 'dash');
         } else if (s.type === 'bus' && state !== 'Z') {
           trace('upper', upper); trace('lower', lower);
         } else if (state === 'Z') {
-          const window = largestVisibleWindow(runStart, runEnd, gaps);
-          const center = (window[0] + window[1]) / 2, gap = s.type === 'bus' && window[1] - window[0] > 28 ? a.fontSize * 0.55 : 0;
+          const window = largestVisibleWindow(busRun ? x(busRun.start) : runStart, busRun ? x(busRun.end) : runEnd, gaps);
+          const center = (window[0] + window[1]) / 2, gap = s.type === 'bus' && window[1] - window[0] > 28 ? (busStyle.fontSize || a.fontSize) * 0.55 : 0;
           if (!gap) trace('z', [[start, mid], [end, mid]], 'dash');
           else {
             if (start < center - gap) trace('z-left', [[start, mid], [Math.min(end, center - gap), mid]], 'dash');
@@ -704,13 +821,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
             trace('trace', points);
           }
         }
-        if (i === run.first && s.type === 'bus' && runSpan > 28 && !patterned && state !== 'X') {
-          const window = largestVisibleWindow(runStart, runEnd, gaps), center = (window[0] + window[1]) / 2;
-          const centerT = (center - labelWidth) / ppu, centerColor = stateAt(s, centerT).color || s.color;
-          const fontSize = a.fontSize * 0.9;
-          const visible = boundedText(value, window[1] - window[0] - 20, fontSize);
-          if (visible) label(id + '-value', center, mid + fontSize * 0.34, visible, { signalId: s.id, fontFamily, fontSize, anchor: 'middle', fill: centerColor });
-        }
+        if (busText && i === busRun.first) label(id + '-value', busText.center, busText.baseline, busText.visible,
+          { signalId: s.id, fontFamily: busStyle.fontFamily || fontFamily, fontSize: busText.fontSize, anchor: 'middle', fill: busText.color, bold: busStyle.bold, italic: busStyle.italic });
         if (i === run.first && s.type === 'digital' && state === 'Z' && a.zStyle === 'line' && runSpan > 28) {
           const window = largestVisibleWindow(runStart, runEnd, gaps);
           if (window[1] - window[0] > 24) label(id + '-value', (window[0] + window[1]) / 2, mid - 5, 'Z', { signalId: s.id, fontFamily, fontSize: a.fontSize * 0.8, anchor: 'middle', fill: color });
@@ -726,6 +838,19 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
           let part = 0;
           for (const segment of l.segments) {
             const rawStart = x(segment.start), rawEnd = x(segment.end), shift = segment.xStart - rawStart;
+            if (element.closed) {
+              for (const [left, right] of visibleWindows(rawStart, rawEnd, gaps)) {
+                const points = clipPolygonX(element.points, left, right);
+                const area = points.reduce((sum, point, i) => {
+                  const next = points[(i + 1) % points.length];
+                  return sum + point[0] * next[1] - next[0] * point[1];
+                }, 0);
+                if (points.length < 3 || Math.abs(area) < EPS) continue;
+                elements.push({ ...element, id: part++ ? uniqueId(element.id + '-part-' + part) : element.id,
+                  points: points.map(([xx, yy]) => [round(xx + shift), yy]) });
+              }
+              continue;
+            }
             clipPolylineGaps(element.points, [...gaps, [-Infinity, rawStart], [rawEnd, Infinity]]).forEach((points) => {
               const translated = points.map(([xx, yy]) => [round(xx + shift), yy]);
               elements.push({ ...element, id: part++ ? uniqueId(element.id + '-part-' + part) : element.id, points: translated });
@@ -798,21 +923,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
         return [[left, top], [right, top], [right, bottom], [left, bottom]];
       });
       function visibleGuidePieces(start, end) {
-        const dx = end[0] - start[0], dy = end[1] - start[1], lengthSquared = dx * dx + dy * dy;
-        let ranges = [[0, 1]];
-        for (const box of labelBoxes) {
-          const overlap = clipSegmentToPolygon(start, end, box);
-          if (!overlap) continue;
-          const [from, to] = overlap.map((point) => ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared);
-          ranges = ranges.flatMap(([a, b]) => {
-            if (to <= a || from >= b) return [[a, b]];
-            const remainder = [];
-            if (from > a + EPS) remainder.push([a, from]);
-            if (to < b - EPS) remainder.push([to, b]);
-            return remainder;
-          });
-        }
-        return ranges.map((range) => range.map((t) => [start[0] + t * dx, start[1] + t * dy]));
+        return clipSegmentOutsidePolygons(start, end, labelBoxes);
       }
       tickLabels.forEach((item, i) => {
         const { t, value, anchor, textWidth, inset, left, lane } = item;
@@ -869,8 +980,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
       }
       const id = esc(idPrefix + '-' + element.id), signalAttr = element.signalId ? ` data-signal-id="${esc(element.signalId)}"` : '';
       if (element.kind === 'polyline') {
-        const d = element.points.map((point, i) => (i ? 'L ' : 'M ') + point.join(' ')).join(' ');
-        parts.push(`<path id="${id}"${signalAttr} d="${d}" fill="${element.fill || 'none'}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" stroke-linejoin="miter" stroke-linecap="butt"${element.dash ? ` stroke-dasharray="${element.dash === 'dot' ? '1 4' : '5 4'}"` : ''}/>`);
+        const d = element.points.map((point, i) => (i ? 'L ' : 'M ') + point.join(' ')).join(' ') + (element.closed ? ' Z' : '');
+        parts.push(`<path id="${id}"${signalAttr} d="${d}" fill="${element.fill || 'none'}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" stroke-linejoin="miter" stroke-linecap="butt"${element.dash ? ` stroke-dasharray="${element.dash === 'dot' ? '1 4' : element.dash === 'dashdot' ? '5 3 1 3' : '5 4'}"` : ''}/>`);
       } else {
         parts.push(`<text id="${id}"${signalAttr}${element.role === 'label' && interactive ? ' data-label="true"' : ''} x="${element.x}" y="${element.y}" font-family="${esc(element.fontFamily)}" font-size="${element.fontSize}" font-weight="${element.bold ? '700' : '400'}" font-style="${element.italic ? 'italic' : 'normal'}" text-anchor="${element.anchor}" fill="${element.fill}">${esc(element.text)}</text>`);
       }
@@ -905,7 +1016,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     parts.push('</svg>');
     return parts.join('');
   }
-  return Object.freeze({ VERSION, HEADER_HEIGHT, LABEL_WIDTH, ROW_HEIGHT, FONT_FAMILIES, LIMITS, createBlank, createDemo, normalizeProject, normalizeSignal, changeTimeRange, valueAt, setRange, setRangeColor, moveEvent, generateClock, getLayout, buildScene, renderSVG });
+  return Object.freeze({ VERSION, HEADER_HEIGHT, LABEL_WIDTH, ROW_HEIGHT, FONT_FAMILIES, LIMITS, createBlank, createDemo, normalizeProject, normalizeSignal, changeTimeRange, valueAt, setRange, setRangeColor, setRangeStyle, moveEvent, generateClock, getLayout, buildScene, renderSVG });
 });
 </script>
   <script>/* autoWaveform editable PPTX exporter — Copyright (c) 2026 autoWaveform contributors. MIT License. */
@@ -964,7 +1075,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   function nonVisual(id,name,textBox = false) { return '<p:nvSpPr><p:cNvPr id="' + id + '" name="' + escapeXML(name) + '"/><p:cNvSpPr' + (textBox ? ' txBox="1"' : '') + '/><p:nvPr/></p:nvSpPr>'; }
   function transform(bounds) { return '<a:xfrm><a:off x="' + bounds.x + '" y="' + bounds.y + '"/><a:ext cx="' + bounds.w + '" cy="' + bounds.h + '"/></a:xfrm>'; }
   function lineXML(item,scale) {
-    return '<a:ln w="' + Math.max(1,integer((item.strokeWidth || 1) * scale)) + '" cap="flat" cmpd="sng" algn="ctr">' + fillXML(item.stroke) + '<a:prstDash val="' + (item.dash === 'dot' ? 'sysDot' : item.dash === 'dash' ? 'dash' : 'solid') + '"/><a:round/><a:headEnd type="none"/><a:tailEnd type="none"/></a:ln>';
+    if (item.stroke === 'none') return '<a:ln><a:noFill/></a:ln>';
+    return '<a:ln w="' + Math.max(1,integer((item.strokeWidth || 1) * scale)) + '" cap="flat" cmpd="sng" algn="ctr">' + fillXML(item.stroke) + '<a:prstDash val="' + (item.dash === 'dot' ? 'sysDot' : item.dash === 'dash' ? 'dash' : item.dash === 'dashdot' ? 'dashDot' : 'solid') + '"/><a:round/><a:headEnd type="none"/><a:tailEnd type="none"/></a:ln>';
   }
   function polyline(item,id,layout,name) {
     if (!Array.isArray(item.points) || item.points.length < 2) throw new Error('PPTX 波形路径至少需要两个点');
@@ -973,8 +1085,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     const x = Math.min(...points.map(p => p[0])), y = Math.min(...points.map(p => p[1]));
     const bounds = {x,y,w:Math.max(1,Math.max(...points.map(p => p[0])) - x),h:Math.max(1,Math.max(...points.map(p => p[1])) - y)};
     const command = points.map((p,i) => '<a:' + (i ? 'lnTo' : 'moveTo') + '><a:pt x="' + (p[0] - x) + '" y="' + (p[1] - y) + '"/></a:' + (i ? 'lnTo' : 'moveTo') + '>').join('');
-    const close = points[0][0] === points[points.length - 1][0] && points[0][1] === points[points.length - 1][1] ? '<a:close/>' : '';
-    const geometry = '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="' + bounds.w + '" h="' + bounds.h + '" fill="' + (item.fill && item.fill !== 'none' ? 'norm' : 'none') + '" stroke="1" extrusionOk="0">' + command + close + '</a:path></a:pathLst></a:custGeom>';
+    const close = item.closed || points[0][0] === points[points.length - 1][0] && points[0][1] === points[points.length - 1][1] ? '<a:close/>' : '';
+    const geometry = '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="' + bounds.w + '" h="' + bounds.h + '" fill="' + (item.fill && item.fill !== 'none' ? 'norm' : 'none') + '" stroke="' + (item.stroke === 'none' ? '0' : '1') + '" extrusionOk="0">' + command + close + '</a:path></a:pathLst></a:custGeom>';
     return {bounds,xml:'<p:sp>' + nonVisual(id,name) + '<p:spPr>' + transform(bounds) + geometry + fillXML(item.fill) + lineXML(item,layout.scale) + '</p:spPr></p:sp>'};
   }
   let measureContext;
@@ -1095,6 +1207,37 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   };
   function icon(name) { return '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' + (icons[name] || '') + '</svg>'; }
   all('[data-icon]').forEach((element) => { element.innerHTML = icon(element.dataset.icon); });
+  function mountBusStyle(prefix,container) {
+    const fonts = C.FONT_FAMILIES.map(font => '<option>' + font + '</option>').join('');
+    $(container).innerHTML = `
+      <div class="section-label">数据段样式</div>
+      <div class="field-row bus-style-colors">
+        <div class="field"><label for="${prefix}-fill">填充颜色</label><input id="${prefix}-fill" type="color" value="#fff2b3"><label class="style-check"><input id="${prefix}-no-fill" type="checkbox" checked>无填充</label></div>
+        <div class="field"><label for="${prefix}-text-color">文字颜色</label><input id="${prefix}-text-color" type="color" value="#111111"><label class="style-check"><input id="${prefix}-auto-text" type="checkbox" checked>跟随线条</label></div>
+      </div>
+      <label class="field">文字字体<select id="${prefix}-font"><option value="">跟随信号字体</option>${fonts}</select></label>
+      <div class="field-row bus-style-type"><label class="field">字号<input id="${prefix}-font-size" type="number" min="8" max="36" step="any" placeholder="默认"></label><div class="appearance-checks"><label><input id="${prefix}-bold" type="checkbox">加粗</label><label><input id="${prefix}-italic" type="checkbox">斜体</label></div></div>`;
+    $(prefix + '-fill').addEventListener('input',() => { $(prefix + '-no-fill').checked = false; });
+    $(prefix + '-text-color').addEventListener('input',() => { $(prefix + '-auto-text').checked = false; });
+  }
+  mountBusStyle('bus-style','bus-style-fields');
+  mountBusStyle('bus-dialog-style','bus-dialog-style-fields');
+  function renderBusStyle(prefix,event,s) {
+    const style = event.busStyle || {};
+    $(prefix + '-fill').value = style.fill || '#fff2b3'; $(prefix + '-no-fill').checked = !style.fill;
+    $(prefix + '-text-color').value = style.textColor || event.color || s.color; $(prefix + '-auto-text').checked = !style.textColor;
+    $(prefix + '-font').value = style.fontFamily || ''; $(prefix + '-font-size').value = style.fontSize ?? '';
+    $(prefix + '-bold').checked = Boolean(style.bold); $(prefix + '-italic').checked = Boolean(style.italic);
+  }
+  function readBusStyle(prefix) {
+    return {
+      fill:$(prefix + '-no-fill').checked ? null : $(prefix + '-fill').value,
+      textColor:$(prefix + '-auto-text').checked ? null : $(prefix + '-text-color').value,
+      fontFamily:$(prefix + '-font').value || null,
+      fontSize:$(prefix + '-font-size').value === '' ? null : $(prefix + '-font-size').valueAsNumber,
+      bold:$(prefix + '-bold').checked ? true : null, italic:$(prefix + '-italic').checked ? true : null
+    };
+  }
   let project, selectedId, selectedEvent = 0, selectedBreak = -1, tool = 'select', ppu = 48;
   let canvasFrame = null;
   let gesture = null, lastBusClick = null, undoStack = [], redoStack = [], saveTimer, toastTimer, storageFailed = false;
@@ -1195,9 +1338,13 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     setField('interval-value', event.value); setField('interval-start', absoluteTime(event.t)); setField('interval-end', absoluteTime(end));
     setTimeBounds(['interval-start','interval-end']);
     setField('interval-color', event.color || s.color);
+    $('bus-style-section').hidden = s.type !== 'bus';
+    $('interval-value-label').firstChild.textContent = s.type === 'bus' ? '区间文字' : '区间值';
+    $('apply-interval').textContent = s.type === 'bus' ? '修改区间文字' : '修改区间值';
+    if (s.type === 'bus') renderBusStyle('bus-style',event,s);
     $('interval-range').textContent = absoluteTime(event.t) + '–' + absoluteTime(end) + ' ' + project.unit;
     $('interval-value').maxLength = s.type === 'digital' ? 1 : 80;
-    $('interval-note').textContent = '填写起止时刻，可只对部分波形着色。';
+    $('interval-note').textContent = s.type === 'bus' ? '填写起止时刻，可分别设置该区间的文字、线条和填充。' : '填写起止时刻，可只对部分波形着色。';
     $('move-up').disabled = project.signals.indexOf(s) === 0;
     $('move-down').disabled = project.signals.indexOf(s) === project.signals.length - 1;
     renderBreakInspector();
@@ -1223,6 +1370,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     setField('z-style',project.appearance.zStyle); setField('x-style',project.appearance.xStyle);
     $('italic-labels').checked = project.appearance.italicLabels; $('bold-labels').checked = project.appearance.boldLabels;
     $('show-axis').checked = project.appearance.showAxis; $('show-grid').checked = project.appearance.showGrid;
+    $('grid-visible').checked = project.appearance.showGrid;
+    setField('grid-style',project.appearance.gridStyle); setField('grid-color',project.appearance.gridColor); setField('grid-width',project.appearance.gridWidth);
     if (!$('time-unit').value) { const opt = document.createElement('option'); opt.value = project.unit; opt.textContent = project.unit; $('time-unit').appendChild(opt); $('time-unit').value = project.unit; }
     if (!Array.from($('snap').options).some((opt) => +opt.value === project.step)) { const opt = document.createElement('option'); opt.value = project.step; opt.textContent = '吸附 ' + project.step + ' 格'; $('snap').appendChild(opt); }
     setField('snap', project.step); $('signal-count').textContent = project.signals.length + ' 个信号';
@@ -1414,6 +1563,7 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   });
   function openBus(start,end,value) {
     setField('bus-start',absoluteTime(start)); setField('bus-end',absoluteTime(end)); setField('bus-value',value);
+    renderBusStyle('bus-dialog-style',signal().events[eventAt(signal(),start)],signal());
     setTimeBounds(['bus-start','bus-end']);
     $('bus-range-note').textContent = project.timeBreaks.length ? '只修改指定范围内的可见区间；省略区间保留原值。' : '只修改指定区间，其他区间保持原值。';
     $('bus-error').textContent = ''; openDialog('bus-dialog'); $('bus-value').select();
@@ -1428,9 +1578,27 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
   }
   $('bus-form').addEventListener('submit',(event) => {
     event.preventDefault(); const start = $('bus-start').valueAsNumber, end = $('bus-end').valueAsNumber, value = $('bus-value').value;
-    if (transact(() => applyRange(start,end,value,true),'bus-error')) $('bus-dialog').close();
+    if (transact(() => {
+      applyRange(start,end,value,true);
+      const style = readBusStyle('bus-dialog-style');
+      for (const segment of layout().segments) {
+        const left = Math.max(relativeTime(start),segment.start), right = Math.min(relativeTime(end),segment.end);
+        if (right > left) C.setRangeStyle(signal(),left,right,style,project.duration);
+      }
+      selectedEvent = eventAt(signal(),relativeTime(start));
+    },'bus-error')) $('bus-dialog').close();
   });
   $('apply-interval').addEventListener('click',() => { const start = $('interval-start').valueAsNumber,end = $('interval-end').valueAsNumber,value = $('interval-value').value; transact(() => applyRange(start,end,value)); });
+  function styleBusInterval(reset = false) {
+    const start = relativeTime($('interval-start').valueAsNumber), end = relativeTime($('interval-end').valueAsNumber);
+    const style = reset ? {fill:null,textColor:null,fontFamily:null,fontSize:null,bold:null,italic:null} : readBusStyle('bus-style');
+    transact(() => {
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= end || end > project.duration) throw new Error('请输入有效的区间起止时刻');
+      C.setRangeStyle(signal(),start,end,style,project.duration); selectedEvent = eventAt(signal(),start);
+    });
+  }
+  $('apply-bus-style').addEventListener('click',() => styleBusInterval());
+  $('reset-bus-style').addEventListener('click',() => styleBusInterval(true));
   function colorInterval(reset = false) {
     const start = relativeTime($('interval-start').valueAsNumber), end = relativeTime($('interval-end').valueAsNumber), color = reset ? null : $('interval-color').value;
     transact(() => {
@@ -1532,6 +1700,8 @@ dialog{border:1px solid #dce3ef;border-radius:13px;padding:26px;width:430px;max-
     $(id).addEventListener('change',() => { const value = $(id).type === 'checkbox' ? $(id).checked : convert($(id).value); transact(() => { project.appearance[key] = value; }); });
   }
   appearanceProperty('show-grid','showGrid'); appearanceProperty('show-axis','showAxis');
+  appearanceProperty('grid-visible','showGrid'); appearanceProperty('grid-style','gridStyle');
+  appearanceProperty('grid-color','gridColor'); appearanceProperty('grid-width','gridWidth',Number);
   appearanceProperty('font-family','fontFamily'); appearanceProperty('font-size','fontSize',Number);
   appearanceProperty('italic-labels','italicLabels'); appearanceProperty('bold-labels','boldLabels');
   appearanceProperty('row-height','rowHeight',Number); appearanceProperty('label-width','labelWidth',Number);

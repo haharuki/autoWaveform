@@ -75,16 +75,37 @@
       boldLabels: boolean(raw.boldLabels, false, '粗体标签'),
       showAxis: boolean(raw.showAxis, true, '显示时间轴'),
       showGrid: boolean(raw.showGrid, false, '显示网格'),
+      gridStyle: choice(raw.gridStyle, 'dot', ['dot', 'dash', 'solid', 'dashdot'], '网格线样式'),
+      gridColor: colorFor(raw.gridColor, '#dedede'),
+      gridWidth: number(raw.gridWidth, 0.65, 0.25, 3, '网格线宽'),
       zStyle: choice(raw.zStyle, 'hatch', ['hatch', 'line'], 'Z 状态样式'),
       xStyle: choice(raw.xStyle, 'crosshatch', ['crosshatch', 'cross'], 'X 状态样式'),
       rowHeight: number(raw.rowHeight, ROW_HEIGHT, 48, 120, '行高'),
       labelWidth: number(raw.labelWidth, LABEL_WIDTH, 80, 300, '名称列宽度')
     };
   }
-  const equalState = (a, b) => a.value === b.value && a.color === b.color;
+  const BUS_STYLE_KEYS = ['fill', 'textColor', 'fontFamily', 'fontSize', 'bold', 'italic'];
+  function normalizeBusStyle(raw) {
+    if (raw === undefined || raw === null) return undefined;
+    object(raw, '总线区间样式');
+    const result = {};
+    for (const key of BUS_STYLE_KEYS) {
+      const value = raw[key];
+      if (value === undefined || value === null) continue;
+      if (key === 'fill' || key === 'textColor') result[key] = colorFor(value);
+      else if (key === 'fontFamily') result[key] = fontFor(value, null);
+      else if (key === 'fontSize') result[key] = number(value, undefined, 8, 36, '总线文字大小');
+      else result[key] = boolean(value, undefined, '总线文字样式');
+      if (result[key] === null) delete result[key];
+    }
+    return Object.keys(result).length ? result : undefined;
+  }
+  const equalBusStyle = (a, b) => BUS_STYLE_KEYS.every((key) => a?.[key] === b?.[key]);
+  const equalState = (a, b) => a.value === b.value && a.color === b.color && equalBusStyle(a.busStyle, b.busStyle);
   function copyEvent(event, t = event.t) {
     const copy = { t: round(t), value: event.value };
     if (event.color) copy.color = event.color;
+    if (event.busStyle) copy.busStyle = { ...event.busStyle };
     return copy;
   }
   function canonical(events) {
@@ -117,6 +138,11 @@
       previous = event.t;
       const normalized = { t: event.t, value: valueFor(type, event.value) };
       if (event.color !== undefined && event.color !== null) normalized.color = colorFor(event.color);
+      const busStyle = normalizeBusStyle(event.busStyle);
+      if (busStyle) {
+        if (type !== 'bus') fail('仅总线信号支持区间文字和背景样式');
+        normalized.busStyle = busStyle;
+      }
       return normalized;
     }).filter((event) => event.t < duration);
     const breakSource = raw.breaks === undefined ? [] : raw.breaks;
@@ -231,6 +257,21 @@
     const checked = color === null ? null : colorFor(color);
     return editRange(signal, start, end, duration, (event) => { if (checked === null) delete event.color; else event.color = checked; });
   }
+  function setRangeStyle(signal, start, end, patch, duration) {
+    if (signal.type !== 'bus') fail('仅总线信号支持区间文字和背景样式');
+    object(patch, '总线区间样式');
+    if (Object.keys(patch).some((key) => !BUS_STYLE_KEYS.includes(key))) fail('不支持的总线区间样式属性');
+    const checked = normalizeBusStyle(patch) || {};
+    return editRange(signal, start, end, duration, (event) => {
+      const next = { ...event.busStyle };
+      for (const key of BUS_STYLE_KEYS) {
+        if (patch[key] === null) delete next[key];
+        else if (own(checked, key)) next[key] = checked[key];
+      }
+      if (Object.keys(next).length) event.busStyle = next;
+      else delete event.busStyle;
+    });
+  }
   function moveEvent(signal, index, t, duration) {
     if (!Number.isInteger(index) || index <= 0 || index >= signal.events.length || !finite(t)) return signal;
     const left = signal.events[index - 1].t;
@@ -339,11 +380,12 @@
     }
     return result ? result + '…' : '';
   }
-  function signalRuns(signal, duration) {
+  function signalRuns(signal, duration, includeBusStyle = false) {
     const runs = [];
     for (let i = 0; i < signal.events.length;) {
       let j = i + 1;
-      while (j < signal.events.length && signal.events[j].value === signal.events[i].value) j++;
+      while (j < signal.events.length && signal.events[j].value === signal.events[i].value &&
+        (!includeBusStyle || equalBusStyle(signal.events[j].busStyle, signal.events[i].busStyle))) j++;
       const run = { first: i, last: j - 1, start: signal.events[i].t, end: signal.events[j] ? signal.events[j].t : duration,
         value: signal.events[i].value, previous: i ? signal.events[i - 1].value : signal.events[i].value };
       for (let k = i; k < j; k++) runs[k] = run;
@@ -385,6 +427,24 @@
     }
     return [[a[0] + dx * from, a[1] + dy * from], [a[0] + dx * to, a[1] + dy * to]];
   }
+  function clipSegmentOutsidePolygons(start, end, polygons) {
+    const dx = end[0] - start[0], dy = end[1] - start[1], lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared < EPS * EPS) return [];
+    let ranges = [[0, 1]];
+    for (const polygon of polygons) {
+      const overlap = clipSegmentToPolygon(start, end, polygon);
+      if (!overlap) continue;
+      const [from, to] = overlap.map((point) => ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared);
+      ranges = ranges.flatMap(([a, b]) => {
+        if (to <= a || from >= b) return [[a, b]];
+        const remainder = [];
+        if (from > a + EPS) remainder.push([a, from]);
+        if (to < b - EPS) remainder.push([to, b]);
+        return remainder;
+      });
+    }
+    return ranges.map((range) => range.map((t) => [start[0] + t * dx, start[1] + t * dy]));
+  }
   function mergedGaps(centers) {
     const gaps = [];
     for (const center of centers) {
@@ -393,6 +453,34 @@
       else gaps.push([left, right]);
     }
     return gaps;
+  }
+  function clipPolygonX(points, left, right) {
+    let result = points;
+    for (const [edge, direction] of [[left, 1], [right, -1]]) {
+      const clipped = [];
+      for (let i = 0; i < result.length; i++) {
+        const previous = result[(i + result.length - 1) % result.length], current = result[i];
+        const previousInside = direction * (previous[0] - edge) >= 0, currentInside = direction * (current[0] - edge) >= 0;
+        if (previousInside !== currentInside) {
+          const ratio = (edge - previous[0]) / (current[0] - previous[0]);
+          clipped.push([edge, previous[1] + (current[1] - previous[1]) * ratio]);
+        }
+        if (currentInside) clipped.push(current);
+      }
+      result = clipped;
+    }
+    return result.map((point) => point.map(round)).filter((point, i, all) => !i || point[0] !== all[i - 1][0] || point[1] !== all[i - 1][1]);
+  }
+  function visibleWindows(start, end, gaps) {
+    const result = [];
+    let cursor = start;
+    for (const [left, right] of gaps) {
+      if (right <= cursor || left >= end) continue;
+      if (left > cursor) result.push([cursor, Math.min(left, end)]);
+      cursor = Math.max(cursor, Math.min(end, right));
+    }
+    if (cursor < end) result.push([cursor, end]);
+    return result;
   }
   function mergeIntervals(intervals) {
     const result = [];
@@ -471,6 +559,11 @@
       if (role) element.role = role;
       elements.push(element);
     }
+    function polygon(id, points, fill, signalId) {
+      if (points.length < 3) return;
+      line(id, points, 'none', 0, signalId, null, 'bus-fill');
+      Object.assign(elements[elements.length - 1], { closed: true, fill });
+    }
     function label(id, xx, y, value, settings) {
       const s = settings || {};
       elements.push({ kind: 'text', id: uniqueId(id), x: round(xx), y: round(y), text: value, fontFamily: s.fontFamily || a.fontFamily, fontSize: s.fontSize || a.fontSize,
@@ -494,7 +587,7 @@
       ticks = [...new Set([...required, ...ticks.filter((t) => required.every((edge) => Math.abs(mappedX(t) - mappedX(edge)) >= metrics.spacing))])].sort((left, right) => left - right);
     }
     const bottom = HEADER_HEIGHT + p.signals.length * rowHeight;
-    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[mappedX(t), HEADER_HEIGHT], [mappedX(t), bottom]], '#dedede', 0.65, null, 'dot'));
+    if (boolean(o.showGrid, a.showGrid, '显示网格')) ticks.forEach((t, i) => line('grid-' + i, [[mappedX(t), HEADER_HEIGHT], [mappedX(t), bottom]], a.gridColor, a.gridWidth, null, a.gridStyle === 'solid' ? null : a.gridStyle));
     p.signals.forEach((s, row) => {
       const signalElementStart = elements.length;
       const top = HEADER_HEIGHT + row * rowHeight, mid = top + rowHeight / 2;
@@ -505,6 +598,7 @@
       label(s.id + '-label', labelWidth - 18, mid + a.fontSize * 0.34, boundedText(s.name, labelWidth - 28, a.fontSize),
         { signalId: s.id, role: 'label', fontFamily, italic: a.italicLabels, bold: a.boldLabels, anchor: 'end' });
       const runs = signalRuns(s, p.duration);
+      const busRuns = s.type === 'bus' ? signalRuns(s, p.duration, true) : null;
       s.events.forEach((event, i) => {
         const run = runs[i], startT = event.t, endT = s.events[i + 1] ? s.events[i + 1].t : p.duration;
         const start = x(startT), end = x(endT), value = event.value, color = event.color || s.color;
@@ -524,6 +618,21 @@
           [runEnd, outlet ? mid : lo], [runEnd - outlet, lo], [runStart + inlet, lo], [runStart, inlet ? mid : lo]];
         const intervalRegion = [[start, hi], [end, hi], [end, lo], [start, lo]];
         const patterned = (state === 'Z' && a.zStyle === 'hatch') || (state === 'X' && a.xStyle === 'crosshatch');
+        const busRun = busRuns?.[i], busStyle = event.busStyle || {};
+        let busText = null;
+        if (busRun && ((!patterned && state !== 'X') || ['textColor', 'fontFamily', 'fontSize', 'bold', 'italic'].some((key) => own(busStyle, key)))) {
+          const window = largestVisibleWindow(x(busRun.start), x(busRun.end), gaps), center = (window[0] + window[1]) / 2;
+          const fontSize = busStyle.fontSize || a.fontSize * 0.9;
+          const visible = boundedText(value, window[1] - window[0] - 20, fontSize);
+          if (visible && window[1] - window[0] > 28) {
+            const centerColor = stateAt(s, (center - labelWidth) / ppu).color || s.color;
+            const estimatedWidth = Array.from(visible).reduce((sum, c) => sum + fontSize * (c.codePointAt(0) > 255 ? 1 : /[MW@%]/.test(c) ? 0.9 : /[il.,' ]/.test(c) ? 0.3 : 0.6), 0);
+            const baseline = mid + fontSize * 0.34, left = center - estimatedWidth / 2 - 2, right = center + estimatedWidth / 2 + 2;
+            busText = { center, baseline, visible, fontSize, color: busStyle.textColor || centerColor,
+              box: [[left, baseline - fontSize * 0.95 - 2], [right, baseline - fontSize * 0.95 - 2], [right, baseline + fontSize * 0.3 + 2], [left, baseline + fontSize * 0.3 + 2]] };
+          }
+        }
+        if (s.type === 'bus' && busStyle.fill) polygon(id + '-fill', clipPolygonX(region, start, end), busStyle.fill, s.id);
         if (patterned) {
           const borderWidth = Math.max(0.5, s.width * 0.7), hatchWidth = Math.max(0.45, Math.min(1.2, s.width * 0.5));
           line(id + '-upper', upper, color, borderWidth, s.id, null, 'pattern-boundary');
@@ -539,7 +648,8 @@
               let segment = clipSegmentToPolygon([anchor, direction > 0 ? lo : hi], [anchor + lo - hi, direction > 0 ? hi : lo], region);
               if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], intervalRegion);
               if (segment) segment = clipSegmentToPolygon(segment[0], segment[1], visibleRegion);
-              if (segment) line(id + (direction > 0 ? '-hatch-' : '-crosshatch-') + n, segment, color, hatchWidth, s.id, null, 'hatch');
+              if (segment) clipSegmentOutsidePolygons(segment[0], segment[1], busText ? [busText.box] : []).forEach((piece, part) =>
+                line(id + (direction > 0 ? '-hatch-' : '-crosshatch-') + n + (part ? '-part-' + part : ''), piece, color, hatchWidth, s.id, null, 'hatch'));
             }
           }
           }
@@ -548,14 +658,14 @@
           const yUp = (xx) => lo - (lo - hi) * (xx - runStart) / runSpan;
           for (const [suffix, points] of [['x-down', [[start, yDown(start)], [end, yDown(end)]]], ['x-up', [[start, yUp(start)], [end, yUp(end)]]]]) {
             const clipped = clipSegmentToPolygon(points[0], points[1], region);
-            if (clipped) trace(suffix, clipped, 'dash');
+            if (clipped) clipSegmentOutsidePolygons(clipped[0], clipped[1], busText ? [busText.box] : []).forEach((piece, part) => trace(suffix + (part ? '-part-' + part : ''), piece, 'dash'));
           }
           trace('upper', upper, 'dash'); trace('lower', lower, 'dash');
         } else if (s.type === 'bus' && state !== 'Z') {
           trace('upper', upper); trace('lower', lower);
         } else if (state === 'Z') {
-          const window = largestVisibleWindow(runStart, runEnd, gaps);
-          const center = (window[0] + window[1]) / 2, gap = s.type === 'bus' && window[1] - window[0] > 28 ? a.fontSize * 0.55 : 0;
+          const window = largestVisibleWindow(busRun ? x(busRun.start) : runStart, busRun ? x(busRun.end) : runEnd, gaps);
+          const center = (window[0] + window[1]) / 2, gap = s.type === 'bus' && window[1] - window[0] > 28 ? (busStyle.fontSize || a.fontSize) * 0.55 : 0;
           if (!gap) trace('z', [[start, mid], [end, mid]], 'dash');
           else {
             if (start < center - gap) trace('z-left', [[start, mid], [Math.min(end, center - gap), mid]], 'dash');
@@ -586,13 +696,8 @@
             trace('trace', points);
           }
         }
-        if (i === run.first && s.type === 'bus' && runSpan > 28 && !patterned && state !== 'X') {
-          const window = largestVisibleWindow(runStart, runEnd, gaps), center = (window[0] + window[1]) / 2;
-          const centerT = (center - labelWidth) / ppu, centerColor = stateAt(s, centerT).color || s.color;
-          const fontSize = a.fontSize * 0.9;
-          const visible = boundedText(value, window[1] - window[0] - 20, fontSize);
-          if (visible) label(id + '-value', center, mid + fontSize * 0.34, visible, { signalId: s.id, fontFamily, fontSize, anchor: 'middle', fill: centerColor });
-        }
+        if (busText && i === busRun.first) label(id + '-value', busText.center, busText.baseline, busText.visible,
+          { signalId: s.id, fontFamily: busStyle.fontFamily || fontFamily, fontSize: busText.fontSize, anchor: 'middle', fill: busText.color, bold: busStyle.bold, italic: busStyle.italic });
         if (i === run.first && s.type === 'digital' && state === 'Z' && a.zStyle === 'line' && runSpan > 28) {
           const window = largestVisibleWindow(runStart, runEnd, gaps);
           if (window[1] - window[0] > 24) label(id + '-value', (window[0] + window[1]) / 2, mid - 5, 'Z', { signalId: s.id, fontFamily, fontSize: a.fontSize * 0.8, anchor: 'middle', fill: color });
@@ -608,6 +713,19 @@
           let part = 0;
           for (const segment of l.segments) {
             const rawStart = x(segment.start), rawEnd = x(segment.end), shift = segment.xStart - rawStart;
+            if (element.closed) {
+              for (const [left, right] of visibleWindows(rawStart, rawEnd, gaps)) {
+                const points = clipPolygonX(element.points, left, right);
+                const area = points.reduce((sum, point, i) => {
+                  const next = points[(i + 1) % points.length];
+                  return sum + point[0] * next[1] - next[0] * point[1];
+                }, 0);
+                if (points.length < 3 || Math.abs(area) < EPS) continue;
+                elements.push({ ...element, id: part++ ? uniqueId(element.id + '-part-' + part) : element.id,
+                  points: points.map(([xx, yy]) => [round(xx + shift), yy]) });
+              }
+              continue;
+            }
             clipPolylineGaps(element.points, [...gaps, [-Infinity, rawStart], [rawEnd, Infinity]]).forEach((points) => {
               const translated = points.map(([xx, yy]) => [round(xx + shift), yy]);
               elements.push({ ...element, id: part++ ? uniqueId(element.id + '-part-' + part) : element.id, points: translated });
@@ -680,21 +798,7 @@
         return [[left, top], [right, top], [right, bottom], [left, bottom]];
       });
       function visibleGuidePieces(start, end) {
-        const dx = end[0] - start[0], dy = end[1] - start[1], lengthSquared = dx * dx + dy * dy;
-        let ranges = [[0, 1]];
-        for (const box of labelBoxes) {
-          const overlap = clipSegmentToPolygon(start, end, box);
-          if (!overlap) continue;
-          const [from, to] = overlap.map((point) => ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared);
-          ranges = ranges.flatMap(([a, b]) => {
-            if (to <= a || from >= b) return [[a, b]];
-            const remainder = [];
-            if (from > a + EPS) remainder.push([a, from]);
-            if (to < b - EPS) remainder.push([to, b]);
-            return remainder;
-          });
-        }
-        return ranges.map((range) => range.map((t) => [start[0] + t * dx, start[1] + t * dy]));
+        return clipSegmentOutsidePolygons(start, end, labelBoxes);
       }
       tickLabels.forEach((item, i) => {
         const { t, value, anchor, textWidth, inset, left, lane } = item;
@@ -751,8 +855,8 @@
       }
       const id = esc(idPrefix + '-' + element.id), signalAttr = element.signalId ? ` data-signal-id="${esc(element.signalId)}"` : '';
       if (element.kind === 'polyline') {
-        const d = element.points.map((point, i) => (i ? 'L ' : 'M ') + point.join(' ')).join(' ');
-        parts.push(`<path id="${id}"${signalAttr} d="${d}" fill="${element.fill || 'none'}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" stroke-linejoin="miter" stroke-linecap="butt"${element.dash ? ` stroke-dasharray="${element.dash === 'dot' ? '1 4' : '5 4'}"` : ''}/>`);
+        const d = element.points.map((point, i) => (i ? 'L ' : 'M ') + point.join(' ')).join(' ') + (element.closed ? ' Z' : '');
+        parts.push(`<path id="${id}"${signalAttr} d="${d}" fill="${element.fill || 'none'}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" stroke-linejoin="miter" stroke-linecap="butt"${element.dash ? ` stroke-dasharray="${element.dash === 'dot' ? '1 4' : element.dash === 'dashdot' ? '5 3 1 3' : '5 4'}"` : ''}/>`);
       } else {
         parts.push(`<text id="${id}"${signalAttr}${element.role === 'label' && interactive ? ' data-label="true"' : ''} x="${element.x}" y="${element.y}" font-family="${esc(element.fontFamily)}" font-size="${element.fontSize}" font-weight="${element.bold ? '700' : '400'}" font-style="${element.italic ? 'italic' : 'normal'}" text-anchor="${element.anchor}" fill="${element.fill}">${esc(element.text)}</text>`);
       }
@@ -787,5 +891,5 @@
     parts.push('</svg>');
     return parts.join('');
   }
-  return Object.freeze({ VERSION, HEADER_HEIGHT, LABEL_WIDTH, ROW_HEIGHT, FONT_FAMILIES, LIMITS, createBlank, createDemo, normalizeProject, normalizeSignal, changeTimeRange, valueAt, setRange, setRangeColor, moveEvent, generateClock, getLayout, buildScene, renderSVG });
+  return Object.freeze({ VERSION, HEADER_HEIGHT, LABEL_WIDTH, ROW_HEIGHT, FONT_FAMILIES, LIMITS, createBlank, createDemo, normalizeProject, normalizeSignal, changeTimeRange, valueAt, setRange, setRangeColor, setRangeStyle, moveEvent, generateClock, getLayout, buildScene, renderSVG });
 });

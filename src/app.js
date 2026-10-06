@@ -35,6 +35,37 @@
   };
   function icon(name) { return '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' + (icons[name] || '') + '</svg>'; }
   all('[data-icon]').forEach((element) => { element.innerHTML = icon(element.dataset.icon); });
+  function mountBusStyle(prefix,container) {
+    const fonts = C.FONT_FAMILIES.map(font => '<option>' + font + '</option>').join('');
+    $(container).innerHTML = `
+      <div class="section-label">数据段样式</div>
+      <div class="field-row bus-style-colors">
+        <div class="field"><label for="${prefix}-fill">填充颜色</label><input id="${prefix}-fill" type="color" value="#fff2b3"><label class="style-check"><input id="${prefix}-no-fill" type="checkbox" checked>无填充</label></div>
+        <div class="field"><label for="${prefix}-text-color">文字颜色</label><input id="${prefix}-text-color" type="color" value="#111111"><label class="style-check"><input id="${prefix}-auto-text" type="checkbox" checked>跟随线条</label></div>
+      </div>
+      <label class="field">文字字体<select id="${prefix}-font"><option value="">跟随信号字体</option>${fonts}</select></label>
+      <div class="field-row bus-style-type"><label class="field">字号<input id="${prefix}-font-size" type="number" min="8" max="36" step="any" placeholder="默认"></label><div class="appearance-checks"><label><input id="${prefix}-bold" type="checkbox">加粗</label><label><input id="${prefix}-italic" type="checkbox">斜体</label></div></div>`;
+    $(prefix + '-fill').addEventListener('input',() => { $(prefix + '-no-fill').checked = false; });
+    $(prefix + '-text-color').addEventListener('input',() => { $(prefix + '-auto-text').checked = false; });
+  }
+  mountBusStyle('bus-style','bus-style-fields');
+  mountBusStyle('bus-dialog-style','bus-dialog-style-fields');
+  function renderBusStyle(prefix,event,s) {
+    const style = event.busStyle || {};
+    $(prefix + '-fill').value = style.fill || '#fff2b3'; $(prefix + '-no-fill').checked = !style.fill;
+    $(prefix + '-text-color').value = style.textColor || event.color || s.color; $(prefix + '-auto-text').checked = !style.textColor;
+    $(prefix + '-font').value = style.fontFamily || ''; $(prefix + '-font-size').value = style.fontSize ?? '';
+    $(prefix + '-bold').checked = Boolean(style.bold); $(prefix + '-italic').checked = Boolean(style.italic);
+  }
+  function readBusStyle(prefix) {
+    return {
+      fill:$(prefix + '-no-fill').checked ? null : $(prefix + '-fill').value,
+      textColor:$(prefix + '-auto-text').checked ? null : $(prefix + '-text-color').value,
+      fontFamily:$(prefix + '-font').value || null,
+      fontSize:$(prefix + '-font-size').value === '' ? null : $(prefix + '-font-size').valueAsNumber,
+      bold:$(prefix + '-bold').checked ? true : null, italic:$(prefix + '-italic').checked ? true : null
+    };
+  }
   let project, selectedId, selectedEvent = 0, selectedBreak = -1, tool = 'select', ppu = 48;
   let canvasFrame = null;
   let gesture = null, lastBusClick = null, undoStack = [], redoStack = [], saveTimer, toastTimer, storageFailed = false;
@@ -135,9 +166,13 @@
     setField('interval-value', event.value); setField('interval-start', absoluteTime(event.t)); setField('interval-end', absoluteTime(end));
     setTimeBounds(['interval-start','interval-end']);
     setField('interval-color', event.color || s.color);
+    $('bus-style-section').hidden = s.type !== 'bus';
+    $('interval-value-label').firstChild.textContent = s.type === 'bus' ? '区间文字' : '区间值';
+    $('apply-interval').textContent = s.type === 'bus' ? '修改区间文字' : '修改区间值';
+    if (s.type === 'bus') renderBusStyle('bus-style',event,s);
     $('interval-range').textContent = absoluteTime(event.t) + '–' + absoluteTime(end) + ' ' + project.unit;
     $('interval-value').maxLength = s.type === 'digital' ? 1 : 80;
-    $('interval-note').textContent = '填写起止时刻，可只对部分波形着色。';
+    $('interval-note').textContent = s.type === 'bus' ? '填写起止时刻，可分别设置该区间的文字、线条和填充。' : '填写起止时刻，可只对部分波形着色。';
     $('move-up').disabled = project.signals.indexOf(s) === 0;
     $('move-down').disabled = project.signals.indexOf(s) === project.signals.length - 1;
     renderBreakInspector();
@@ -163,6 +198,8 @@
     setField('z-style',project.appearance.zStyle); setField('x-style',project.appearance.xStyle);
     $('italic-labels').checked = project.appearance.italicLabels; $('bold-labels').checked = project.appearance.boldLabels;
     $('show-axis').checked = project.appearance.showAxis; $('show-grid').checked = project.appearance.showGrid;
+    $('grid-visible').checked = project.appearance.showGrid;
+    setField('grid-style',project.appearance.gridStyle); setField('grid-color',project.appearance.gridColor); setField('grid-width',project.appearance.gridWidth);
     if (!$('time-unit').value) { const opt = document.createElement('option'); opt.value = project.unit; opt.textContent = project.unit; $('time-unit').appendChild(opt); $('time-unit').value = project.unit; }
     if (!Array.from($('snap').options).some((opt) => +opt.value === project.step)) { const opt = document.createElement('option'); opt.value = project.step; opt.textContent = '吸附 ' + project.step + ' 格'; $('snap').appendChild(opt); }
     setField('snap', project.step); $('signal-count').textContent = project.signals.length + ' 个信号';
@@ -354,6 +391,7 @@
   });
   function openBus(start,end,value) {
     setField('bus-start',absoluteTime(start)); setField('bus-end',absoluteTime(end)); setField('bus-value',value);
+    renderBusStyle('bus-dialog-style',signal().events[eventAt(signal(),start)],signal());
     setTimeBounds(['bus-start','bus-end']);
     $('bus-range-note').textContent = project.timeBreaks.length ? '只修改指定范围内的可见区间；省略区间保留原值。' : '只修改指定区间，其他区间保持原值。';
     $('bus-error').textContent = ''; openDialog('bus-dialog'); $('bus-value').select();
@@ -368,9 +406,27 @@
   }
   $('bus-form').addEventListener('submit',(event) => {
     event.preventDefault(); const start = $('bus-start').valueAsNumber, end = $('bus-end').valueAsNumber, value = $('bus-value').value;
-    if (transact(() => applyRange(start,end,value,true),'bus-error')) $('bus-dialog').close();
+    if (transact(() => {
+      applyRange(start,end,value,true);
+      const style = readBusStyle('bus-dialog-style');
+      for (const segment of layout().segments) {
+        const left = Math.max(relativeTime(start),segment.start), right = Math.min(relativeTime(end),segment.end);
+        if (right > left) C.setRangeStyle(signal(),left,right,style,project.duration);
+      }
+      selectedEvent = eventAt(signal(),relativeTime(start));
+    },'bus-error')) $('bus-dialog').close();
   });
   $('apply-interval').addEventListener('click',() => { const start = $('interval-start').valueAsNumber,end = $('interval-end').valueAsNumber,value = $('interval-value').value; transact(() => applyRange(start,end,value)); });
+  function styleBusInterval(reset = false) {
+    const start = relativeTime($('interval-start').valueAsNumber), end = relativeTime($('interval-end').valueAsNumber);
+    const style = reset ? {fill:null,textColor:null,fontFamily:null,fontSize:null,bold:null,italic:null} : readBusStyle('bus-style');
+    transact(() => {
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= end || end > project.duration) throw new Error('请输入有效的区间起止时刻');
+      C.setRangeStyle(signal(),start,end,style,project.duration); selectedEvent = eventAt(signal(),start);
+    });
+  }
+  $('apply-bus-style').addEventListener('click',() => styleBusInterval());
+  $('reset-bus-style').addEventListener('click',() => styleBusInterval(true));
   function colorInterval(reset = false) {
     const start = relativeTime($('interval-start').valueAsNumber), end = relativeTime($('interval-end').valueAsNumber), color = reset ? null : $('interval-color').value;
     transact(() => {
@@ -472,6 +528,8 @@
     $(id).addEventListener('change',() => { const value = $(id).type === 'checkbox' ? $(id).checked : convert($(id).value); transact(() => { project.appearance[key] = value; }); });
   }
   appearanceProperty('show-grid','showGrid'); appearanceProperty('show-axis','showAxis');
+  appearanceProperty('grid-visible','showGrid'); appearanceProperty('grid-style','gridStyle');
+  appearanceProperty('grid-color','gridColor'); appearanceProperty('grid-width','gridWidth',Number);
   appearanceProperty('font-family','fontFamily'); appearanceProperty('font-size','fontSize',Number);
   appearanceProperty('italic-labels','italicLabels'); appearanceProperty('bold-labels','boldLabels');
   appearanceProperty('row-height','rowHeight',Number); appearanceProperty('label-width','labelWidth',Number);

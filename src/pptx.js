@@ -54,7 +54,8 @@
   function nonVisual(id,name,textBox = false) { return '<p:nvSpPr><p:cNvPr id="' + id + '" name="' + escapeXML(name) + '"/><p:cNvSpPr' + (textBox ? ' txBox="1"' : '') + '/><p:nvPr/></p:nvSpPr>'; }
   function transform(bounds) { return '<a:xfrm><a:off x="' + bounds.x + '" y="' + bounds.y + '"/><a:ext cx="' + bounds.w + '" cy="' + bounds.h + '"/></a:xfrm>'; }
   function lineXML(item,scale) {
-    return '<a:ln w="' + Math.max(1,integer((item.strokeWidth || 1) * scale)) + '" cap="flat" cmpd="sng" algn="ctr">' + fillXML(item.stroke) + '<a:prstDash val="' + (item.dash === 'dot' ? 'sysDot' : item.dash === 'dash' ? 'dash' : 'solid') + '"/><a:round/><a:headEnd type="none"/><a:tailEnd type="none"/></a:ln>';
+    if (item.stroke === 'none') return '<a:ln><a:noFill/></a:ln>';
+    return '<a:ln w="' + Math.max(1,integer((item.strokeWidth || 1) * scale)) + '" cap="flat" cmpd="sng" algn="ctr">' + fillXML(item.stroke) + '<a:prstDash val="' + (item.dash === 'dot' ? 'sysDot' : item.dash === 'dash' ? 'dash' : item.dash === 'dashdot' ? 'dashDot' : 'solid') + '"/><a:round/><a:headEnd type="none"/><a:tailEnd type="none"/></a:ln>';
   }
   function polyline(item,id,layout,name) {
     if (!Array.isArray(item.points) || item.points.length < 2) throw new Error('PPTX 波形路径至少需要两个点');
@@ -63,8 +64,8 @@
     const x = Math.min(...points.map(p => p[0])), y = Math.min(...points.map(p => p[1]));
     const bounds = {x,y,w:Math.max(1,Math.max(...points.map(p => p[0])) - x),h:Math.max(1,Math.max(...points.map(p => p[1])) - y)};
     const command = points.map((p,i) => '<a:' + (i ? 'lnTo' : 'moveTo') + '><a:pt x="' + (p[0] - x) + '" y="' + (p[1] - y) + '"/></a:' + (i ? 'lnTo' : 'moveTo') + '>').join('');
-    const close = points[0][0] === points[points.length - 1][0] && points[0][1] === points[points.length - 1][1] ? '<a:close/>' : '';
-    const geometry = '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="' + bounds.w + '" h="' + bounds.h + '" fill="' + (item.fill && item.fill !== 'none' ? 'norm' : 'none') + '" stroke="1" extrusionOk="0">' + command + close + '</a:path></a:pathLst></a:custGeom>';
+    const close = item.closed || points[0][0] === points[points.length - 1][0] && points[0][1] === points[points.length - 1][1] ? '<a:close/>' : '';
+    const geometry = '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="' + bounds.w + '" h="' + bounds.h + '" fill="' + (item.fill && item.fill !== 'none' ? 'norm' : 'none') + '" stroke="' + (item.stroke === 'none' ? '0' : '1') + '" extrusionOk="0">' + command + close + '</a:path></a:pathLst></a:custGeom>';
     return {bounds,xml:'<p:sp>' + nonVisual(id,name) + '<p:spPr>' + transform(bounds) + geometry + fillXML(item.fill) + lineXML(item,layout.scale) + '</p:spPr></p:sp>'};
   }
   let measureContext;
